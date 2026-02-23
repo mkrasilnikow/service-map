@@ -2,10 +2,11 @@
  * @file Canvas component — the main SVG drawing area.
  *
  * Renders all nodes and edges on an SVG element with:
- *   - Dot-grid background pattern
+ *   - Dot-grid background pattern (via SVG pattern, scales with zoom)
+ *   - Pan & zoom via viewBox
  *   - Arrow markers for edge endpoints
  *   - Namespace group rectangles (dashed outlines with labels)
- *   - Mouse event handlers for drag and click interactions
+ *   - Mouse event handlers for drag, click, pan, and zoom
  *   - Connect-mode visual indicator (pulsing circle)
  *
  * @param props.nodes - Array of all graph nodes.
@@ -14,13 +15,17 @@
  * @param props.mode - Current interaction mode.
  * @param props.connectFrom - Source node ID in connect mode (or null).
  * @param props.isDark - Whether dark theme is active.
- * @param props.svgRef - Ref to the SVG element (shared with useDrag).
+ * @param props.svgRef - Ref to the SVG element.
+ * @param props.viewBox - The viewBox string for pan/zoom.
  * @param props.onNodeMouseDown - Handler for starting a drag on a node.
  * @param props.onNodeClick - Handler for clicking a node.
  * @param props.onEdgeClick - Handler for clicking an edge.
- * @param props.onSvgMouseMove - Handler for mouse move (drag tracking).
- * @param props.onSvgMouseUp - Handler for mouse up (end drag).
+ * @param props.onEdgeControlDragStart - Handler for starting to drag an edge control point.
+ * @param props.onSvgMouseMove - Handler for mouse move (drag/pan tracking).
+ * @param props.onSvgMouseUp - Handler for mouse up (end drag/pan).
+ * @param props.onSvgMouseDown - Handler for mouse down on canvas (pan start).
  * @param props.onSvgClick - Handler for clicking empty canvas area.
+ * @param props.onWheel - Handler for mouse wheel (zoom).
  */
 
 import { useMemo } from 'react';
@@ -42,12 +47,16 @@ interface CanvasProps {
   connectFrom: string | null;
   isDark: boolean;
   svgRef: React.RefObject<SVGSVGElement | null>;
+  viewBox: string;
   onNodeMouseDown: (e: React.MouseEvent, nodeId: string) => void;
   onNodeClick: (e: React.MouseEvent, nodeId: string) => void;
   onEdgeClick: (e: React.MouseEvent, edgeId: string) => void;
+  onEdgeControlDragStart: (e: React.MouseEvent, edgeId: string) => void;
   onSvgMouseMove: (e: React.MouseEvent) => void;
   onSvgMouseUp: () => void;
+  onSvgMouseDown: (e: React.MouseEvent) => void;
   onSvgClick: () => void;
+  onWheel: (e: React.WheelEvent) => void;
 }
 
 /** Computed bounding box for a namespace group */
@@ -68,7 +77,6 @@ function getNodeCenter(nodes: GraphNode[], nodeId: string): { x: number; y: numb
 
 /**
  * Compute bounding rectangles for each namespace group.
- * The rectangle tightly wraps all nodes in the namespace with padding.
  */
 function computeNamespaceGroups(nodes: GraphNode[]): NamespaceGroup[] {
   const groups = new Map<string, GraphNode[]>();
@@ -115,31 +123,39 @@ export function Canvas({
   connectFrom,
   isDark,
   svgRef,
+  viewBox,
   onNodeMouseDown,
   onNodeClick,
   onEdgeClick,
+  onEdgeControlDragStart,
   onSvgMouseMove,
   onSvgMouseUp,
+  onSvgMouseDown,
   onSvgClick,
+  onWheel,
 }: CanvasProps) {
   const arrowFill = isDark ? '#334155' : '#94a3b8';
   const nsGroups = useMemo(() => computeNamespaceGroups(nodes), [nodes]);
+  const dotColor = isDark ? '#1e3a5f' : '#cbd5e1';
 
   return (
     <svg
       ref={svgRef}
+      viewBox={viewBox}
+      preserveAspectRatio="xMinYMin meet"
       style={{
         flex: 1,
         cursor: mode === 'connect' ? (connectFrom ? 'crosshair' : 'copy') : 'default',
-        backgroundImage: isDark
-          ? 'radial-gradient(circle, #1e3a5f22 1px, transparent 1px)'
-          : 'radial-gradient(circle, #cbd5e122 1px, transparent 1px)',
-        backgroundSize: '28px 28px',
       }}
       onMouseMove={onSvgMouseMove}
-      onMouseUp={onSvgMouseUp}
+      onMouseUp={() => {
+        onSvgMouseUp();
+      }}
       onMouseLeave={onSvgMouseUp}
+      onMouseDown={onSvgMouseDown}
       onClick={onSvgClick}
+      onWheel={onWheel}
+      onContextMenu={e => e.preventDefault()}
     >
       <defs>
         <marker id="arrow" markerWidth="8" markerHeight="8" refX="8" refY="3" orient="auto">
@@ -155,7 +171,14 @@ export function Canvas({
         >
           <path d="M0,0 L0,6 L8,3 z" fill="#60a5fa" />
         </marker>
+        {/* Dot-grid pattern that scales with viewBox */}
+        <pattern id="dot-grid" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
+          <circle cx="14" cy="14" r="1" fill={dotColor} opacity="0.15" />
+        </pattern>
       </defs>
+
+      {/* Background grid */}
+      <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dot-grid)" />
 
       {/* Namespace group rectangles (rendered below everything) */}
       {nsGroups.map(group => (
@@ -200,6 +223,7 @@ export function Canvas({
             isSelected={selected?.id === edge.id}
             isDark={isDark}
             onClick={onEdgeClick}
+            onControlDragStart={onEdgeControlDragStart}
           />
         );
       })}

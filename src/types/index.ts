@@ -105,6 +105,10 @@ export interface GraphEdge {
   type?: IntegrationTypeKey;
   /** Optional human-readable label displayed on the edge */
   label?: string;
+  /** Manual X offset for the edge control point (for repositioning the curve) */
+  controlOffsetX?: number;
+  /** Manual Y offset for the edge control point (for repositioning the curve) */
+  controlOffsetY?: number;
 }
 
 /**

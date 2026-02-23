@@ -3,7 +3,8 @@
  *
  * Orchestrates all child components and hooks:
  *   - useGraph — manages nodes, edges, selection
- *   - useDrag — handles node dragging on the canvas
+ *   - useDrag — handles node and edge control point dragging
+ *   - useViewport — pan and zoom on the SVG canvas
  *   - useKeyboard — global keyboard shortcuts
  *
  * Manages application-level state:
@@ -17,6 +18,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import type { InteractionMode, NodeTypeKey, GraphNode, GraphEdge } from './types';
 import { useGraph } from './hooks/useGraph';
 import { useDrag } from './hooks/useDrag';
+import { useViewport } from './hooks/useViewport';
 import { useKeyboard } from './hooks/useKeyboard';
 import { toMermaid, toSchemaExport } from './utils/export';
 import { Canvas } from './components/Canvas';
@@ -65,13 +67,42 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
-  /* --- Drag --- */
+  /* --- Viewport (pan & zoom) --- */
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const { onNodeMouseDown: dragMouseDown, onSvgMouseMove, onSvgMouseUp } = useDrag(
-    nodes,
-    updateNode,
-    svgRef,
+  const {
+    viewport,
+    getViewBox,
+    screenToSvg,
+    onWheel,
+    onPanStart,
+    onPanMove,
+    onPanEnd,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+  } = useViewport(svgRef);
+
+  /* --- Drag (nodes + edge control points) --- */
+  const {
+    onNodeMouseDown: dragMouseDown,
+    onEdgeControlMouseDown,
+    onSvgMouseMove: dragMouseMove,
+    onSvgMouseUp: dragMouseUp,
+  } = useDrag(nodes, edges, updateNode, updateEdge, screenToSvg);
+
+  /* --- Combined mouse move/up for both drag and pan --- */
+  const onSvgMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      dragMouseMove(e);
+      onPanMove(e);
+    },
+    [dragMouseMove, onPanMove],
   );
+
+  const onSvgMouseUp = useCallback(() => {
+    dragMouseUp();
+    onPanEnd();
+  }, [dragMouseUp, onPanEnd]);
 
   /* --- Keyboard --- */
   const resetMode = useCallback(() => {
@@ -126,6 +157,14 @@ export default function App() {
     setSelected(null);
   }, [setSelected]);
 
+  /* --- Canvas mouse down: pan start --- */
+  const onSvgMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      onPanStart(e);
+    },
+    [onPanStart],
+  );
+
   /* --- Mode change --- */
   const handleModeChange = useCallback(
     (newMode: InteractionMode) => {
@@ -157,8 +196,10 @@ export default function App() {
   );
 
   /* --- Resolved selected elements --- */
-  const selectedNode = selected?.kind === 'node' ? nodes.find(n => n.id === selected.id) ?? null : null;
-  const selectedEdge = selected?.kind === 'edge' ? edges.find(e => e.id === selected.id) ?? null : null;
+  const selectedNode =
+    selected?.kind === 'node' ? (nodes.find(n => n.id === selected.id) ?? null) : null;
+  const selectedEdge =
+    selected?.kind === 'edge' ? (edges.find(e => e.id === selected.id) ?? null) : null;
 
   return (
     <div className="app-root">
@@ -176,6 +217,10 @@ export default function App() {
         onExport={() => setShowExport(true)}
         onImport={() => setShowImport(true)}
         onToggleTheme={() => setIsDark(prev => !prev)}
+        zoomLevel={viewport.scale}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onZoomReset={resetZoom}
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -187,12 +232,16 @@ export default function App() {
           connectFrom={connectFrom}
           isDark={isDark}
           svgRef={svgRef}
+          viewBox={getViewBox()}
           onNodeMouseDown={onNodeMouseDown}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
+          onEdgeControlDragStart={onEdgeControlMouseDown}
           onSvgMouseMove={onSvgMouseMove}
           onSvgMouseUp={onSvgMouseUp}
+          onSvgMouseDown={onSvgMouseDown}
           onSvgClick={onSvgClick}
+          onWheel={onWheel}
         />
 
         <Sidebar
@@ -225,10 +274,7 @@ export default function App() {
       )}
 
       {showImport && (
-        <ImportModal
-          onImport={handleImport}
-          onClose={() => setShowImport(false)}
-        />
+        <ImportModal onImport={handleImport} onClose={() => setShowImport(false)} />
       )}
     </div>
   );
