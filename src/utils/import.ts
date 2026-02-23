@@ -13,6 +13,7 @@ import type { GraphNode, GraphEdge, NodeTypeKey, IntegrationTypeKey } from '../t
 import { NODE_TYPES } from '../constants/nodeTypes';
 import { EDGE_TYPES } from '../constants/edgeTypes';
 import { computeLayout } from './layout';
+import { validateServiceSchema } from './schema';
 
 /** Result type for import operations */
 interface ImportResult {
@@ -40,21 +41,22 @@ export function importServiceSchema(json: string): ImportResult {
     throw new Error('Invalid JSON: could not parse the input.');
   }
 
-  if (typeof data !== 'object' || data === null || !('services' in data)) {
-    throw new Error('Invalid service-schema: missing "services" array.');
+  /* Run JSON Schema validation first */
+  const validationErrors = validateServiceSchema(data);
+  if (validationErrors.length > 0) {
+    const messages = validationErrors.map(e => `${e.path}: ${e.message}`);
+    throw new Error('Validation errors:\n' + messages.join('\n'));
   }
 
   const obj = data as Record<string, unknown>;
-  if (!Array.isArray(obj.services)) {
-    throw new Error('Invalid service-schema: "services" must be an array.');
-  }
+  const services = obj.services as Record<string, unknown>[];
 
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
   let edgeCounter = 0;
 
-  for (let i = 0; i < obj.services.length; i++) {
-    const svc = obj.services[i] as Record<string, unknown>;
+  for (let i = 0; i < services.length; i++) {
+    const svc = services[i];
 
     if (!svc.id || typeof svc.id !== 'string') {
       throw new Error(`Service at index ${i}: missing or invalid "id".`);

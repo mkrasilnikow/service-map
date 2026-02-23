@@ -3,12 +3,13 @@
  *
  * Presents a form with:
  *   - Service name text input
+ *   - Namespace text input (optional, for grouping)
  *   - Node type selector (visual grid of type cards)
  *   - Cancel / Add buttons
  *
  * Pressing Enter in the name field submits the form.
  *
- * @param props.onAdd - Callback with (name, type) when the user confirms.
+ * @param props.onAdd - Callback with (name, type, namespace?) when the user confirms.
  * @param props.onClose - Callback to close the modal.
  * @param props.isDark - Whether dark theme is active.
  */
@@ -21,6 +22,8 @@ import { NODE_TYPES } from '../../../constants/nodeTypes';
 const LABELS = {
   TITLE: '+ ADD NEW NODE',
   SERVICE_NAME: 'SERVICE NAME',
+  NAMESPACE: 'NAMESPACE (OPTIONAL)',
+  NAMESPACE_PLACEHOLDER: 'e.g. backend, infra',
   TYPE: 'TYPE',
   PLACEHOLDER: 'e.g. payment-service',
   CANCEL: 'CANCEL',
@@ -28,18 +31,19 @@ const LABELS = {
 } as const;
 
 interface AddNodeModalProps {
-  onAdd: (name: string, type: NodeTypeKey) => void;
+  onAdd: (name: string, type: NodeTypeKey, namespace?: string) => void;
   onClose: () => void;
   isDark: boolean;
 }
 
 export function AddNodeModal({ onAdd, onClose, isDark }: AddNodeModalProps) {
   const [name, setName] = useState('');
+  const [namespace, setNamespace] = useState('');
   const [type, setType] = useState<NodeTypeKey>('spring-boot');
 
   const handleAdd = () => {
     if (!name.trim()) return;
-    onAdd(name, type);
+    onAdd(name, type, namespace.trim() || undefined);
   };
 
   return (
@@ -56,6 +60,13 @@ export function AddNodeModal({ onAdd, onClose, isDark }: AddNodeModalProps) {
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
         />
 
+        <label>{LABELS.NAMESPACE}</label>
+        <input
+          value={namespace}
+          onChange={e => setNamespace(e.target.value)}
+          placeholder={LABELS.NAMESPACE_PLACEHOLDER}
+        />
+
         <label>{LABELS.TYPE}</label>
         <div className="type-grid" style={{ marginBottom: 16 }}>
           {Object.entries(NODE_TYPES).map(([key, config]) => (
@@ -64,7 +75,9 @@ export function AddNodeModal({ onAdd, onClose, isDark }: AddNodeModalProps) {
               className="type-card"
               style={{
                 borderColor:
-                  type === key ? config.color : (isDark ? config.borderDark : config.borderLight) + '40',
+                  type === key
+                    ? config.color
+                    : (isDark ? config.borderDark : config.borderLight) + '40',
                 background:
                   type === key ? (isDark ? config.bgDark : config.bgLight) : 'var(--bg)',
                 color: config.color,

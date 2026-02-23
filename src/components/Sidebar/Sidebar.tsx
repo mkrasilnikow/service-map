@@ -35,6 +35,8 @@ const LABELS = {
   TARGET: 'TARGET',
   LABEL: 'LABEL',
   INTEGRATION_TYPE: 'INTEGRATION TYPE',
+  NAMESPACE: 'NAMESPACE',
+  NAMESPACE_PLACEHOLDER: 'e.g. backend, infra',
   REMOVE_NODE: '✕ REMOVE NODE',
   REMOVE_EDGE: '✕ REMOVE EDGE',
   NONE: '— none —',
@@ -109,6 +111,20 @@ export function Sidebar({
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="prop-row">
+          <label>{LABELS.NAMESPACE}</label>
+          <input
+            className="sidebar-input"
+            value={selectedNode.namespace ?? ''}
+            placeholder={LABELS.NAMESPACE_PLACEHOLDER}
+            onChange={e =>
+              onUpdateNode(selectedNode.id, {
+                namespace: e.target.value || undefined,
+              })
+            }
+          />
         </div>
 
         <div className="prop-row">

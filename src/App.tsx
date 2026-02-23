@@ -138,8 +138,8 @@ export default function App() {
 
   /* --- Add node from modal --- */
   const handleAddNode = useCallback(
-    (name: string, type: NodeTypeKey) => {
-      addNode(name, type);
+    (name: string, type: NodeTypeKey, namespace?: string) => {
+      addNode(name, type, namespace);
       setShowAddNode(false);
     },
     [addNode],
@@ -219,6 +219,7 @@ export default function App() {
         <ExportModal
           mermaid={toMermaid(nodes, edges)}
           schemaExport={toSchemaExport(nodes, edges)}
+          svgRef={svgRef}
           onClose={() => setShowExport(false)}
         />
       )}
