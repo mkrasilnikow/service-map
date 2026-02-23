@@ -1,0 +1,84 @@
+{
+  "version": "1.0",
+  "services": [
+    {
+      "id": "api-gateway",
+      "name": "API Gateway",
+      "type": "spring-boot",
+      "namespace": "backend",
+      "integrations": [
+        { "target": "user-service", "type": "REST" },
+        { "target": "order-service", "type": "REST" },
+        { "target": "notification-service", "type": "REST" }
+      ]
+    },
+    {
+      "id": "user-service",
+      "name": "User Service",
+      "type": "spring-boot",
+      "namespace": "backend",
+      "integrations": [
+        { "target": "postgres-users", "type": "db", "label": "read/write" },
+        { "target": "redis-cache", "type": "cache", "label": "session" }
+      ]
+    },
+    {
+      "id": "order-service",
+      "name": "Order Service",
+      "type": "spring-boot",
+      "namespace": "backend",
+      "integrations": [
+        { "target": "postgres-orders", "type": "db", "label": "read/write" },
+        { "target": "kafka-cluster", "type": "pub/sub", "label": "order.created" }
+      ]
+    },
+    {
+      "id": "notification-service",
+      "name": "Notification Service",
+      "type": "nodejs",
+      "namespace": "backend",
+      "integrations": [
+        { "target": "mongodb-notifications", "type": "db", "label": "write" },
+        { "target": "external-smtp", "type": "REST", "label": "send email" }
+      ]
+    },
+    {
+      "id": "redis-cache",
+      "name": "Redis Cache",
+      "type": "redis",
+      "namespace": "infra"
+    },
+    {
+      "id": "kafka-cluster",
+      "name": "Kafka Cluster",
+      "type": "kafka",
+      "namespace": "infra",
+      "integrations": [
+        { "target": "notification-service", "type": "pub/sub", "label": "order.created" }
+      ]
+    },
+    {
+      "id": "postgres-users",
+      "name": "Users DB",
+      "type": "postgresql",
+      "namespace": "databases"
+    },
+    {
+      "id": "postgres-orders",
+      "name": "Orders DB",
+      "type": "postgresql",
+      "namespace": "databases"
+    },
+    {
+      "id": "mongodb-notifications",
+      "name": "Notifications DB",
+      "type": "mongodb",
+      "namespace": "databases"
+    },
+    {
+      "id": "external-smtp",
+      "name": "SMTP Provider",
+      "type": "external"
+    }
+  ]
+}

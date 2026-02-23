@@ -64,10 +64,10 @@ export function useGraph() {
   const [edges, setEdges] = useState<GraphEdge[]>(DEMO_EDGES);
   const [selected, setSelected] = useState<Selection | null>(null);
 
-  /** Add a new node with the given name and type at position (300, 300) */
-  const addNode = useCallback((name: string, type: NodeTypeKey) => {
+  /** Add a new node with the given name, type, and optional namespace at position (300, 300) */
+  const addNode = useCallback((name: string, type: NodeTypeKey, namespace?: string) => {
     const id = name.trim().toLowerCase().replace(/\s+/g, '-') + '-' + genId();
-    const node: GraphNode = { id, name: name.trim(), type, x: 300, y: 300 };
+    const node: GraphNode = { id, name: name.trim(), type, namespace, x: 300, y: 300 };
     setNodes(prev => [...prev, node]);
     return node;
   }, []);
