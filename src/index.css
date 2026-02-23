@@ -1,0 +1,286 @@
+/**
+ * @file Global styles and CSS custom properties for theming.
+ *
+ * Theme switching is handled via the [data-theme] attribute on <html>.
+ * All color values used by components reference CSS variables defined here.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+/* ─── Dark theme (default) ─── */
+:root,
+[data-theme='dark'] {
+  --bg: #060b14;
+  --toolbar-bg: #080f1a;
+  --sidebar-bg: #080f1a;
+  --border: #0f2040;
+  --accent: #3b82f6;
+  --text: #cbd5e1;
+  --text-secondary: #94a3b8;
+  --muted: #334155;
+  --input-bg: #060b14;
+  --input-border: #1e3a5f;
+  --input-text: #e2e8f0;
+  --modal-bg: #0d1b2e;
+  --modal-border: #1e3a5f;
+  --modal-title: #93c5fd;
+  --btn-bg: #0d1b2e;
+  --btn-border: #1e3a5f;
+  --btn-text: #94a3b8;
+  --btn-hover-bg: #162540;
+  --btn-hover-text: #e2e8f0;
+  --btn-active-bg: #1d3d7a;
+  --btn-active-text: #60a5fa;
+  --btn-active-border: #3b82f6;
+  --danger-border: #7f1d1d;
+  --danger-text: #f87171;
+  --danger-hover-bg: #2a0f0f;
+  --success-border: #14532d;
+  --success-text: #4ade80;
+  --success-hover-bg: #0a2010;
+  --scrollbar-track: #0a0f1a;
+  --scrollbar-thumb: #1e3a5f;
+}
+
+/* ─── Light theme ─── */
+[data-theme='light'] {
+  --bg: #f8fafc;
+  --toolbar-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --border: #e2e8f0;
+  --accent: #2563eb;
+  --text: #1e293b;
+  --text-secondary: #475569;
+  --muted: #94a3b8;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --input-text: #1e293b;
+  --modal-bg: #ffffff;
+  --modal-border: #e2e8f0;
+  --modal-title: #2563eb;
+  --btn-bg: #f1f5f9;
+  --btn-border: #cbd5e1;
+  --btn-text: #475569;
+  --btn-hover-bg: #e2e8f0;
+  --btn-hover-text: #1e293b;
+  --btn-active-bg: #dbeafe;
+  --btn-active-text: #2563eb;
+  --btn-active-border: #3b82f6;
+  --danger-border: #fecaca;
+  --danger-text: #dc2626;
+  --danger-hover-bg: #fee2e2;
+  --success-border: #bbf7d0;
+  --success-text: #16a34a;
+  --success-hover-bg: #dcfce7;
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+}
+
+/* ─── Reset & base ─── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+
+/* ─── App layout ─── */
+.app-root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ─── Buttons ─── */
+.toolbar-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+}
+.toolbar-btn:hover {
+  background: var(--btn-hover-bg);
+  color: var(--btn-hover-text);
+  border-color: var(--accent);
+}
+.toolbar-btn.active {
+  background: var(--btn-active-bg);
+  color: var(--btn-active-text);
+  border-color: var(--btn-active-border);
+}
+.toolbar-btn.danger {
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+.toolbar-btn.danger:hover {
+  background: var(--danger-hover-bg);
+}
+.toolbar-btn.success {
+  border-color: var(--success-border);
+  color: var(--success-text);
+}
+.toolbar-btn.success:hover {
+  background: var(--success-hover-bg);
+}
+
+/* ─── Node hover effect ─── */
+.node-rect:hover {
+  filter: brightness(1.15);
+}
+
+/* ─── Modal ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: var(--modal-bg);
+  border: 1px solid var(--modal-border);
+  border-radius: 12px;
+  padding: 28px;
+  min-width: 340px;
+  font-family: inherit;
+}
+.modal h3 {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--modal-title);
+  letter-spacing: 0.05em;
+}
+.modal input,
+.modal select,
+.modal textarea {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--input-text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  outline: none;
+  margin-bottom: 12px;
+}
+.modal input:focus,
+.modal select:focus,
+.modal textarea:focus {
+  border-color: var(--accent);
+}
+.modal label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* ─── Sidebar ─── */
+.sidebar {
+  width: 240px;
+  background: var(--sidebar-bg);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.sidebar h4 {
+  margin: 0 0 12px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.sidebar-input {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--input-text);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  outline: none;
+}
+.sidebar-input:focus {
+  border-color: var(--accent);
+}
+
+/* ─── Sidebar sub-elements ─── */
+.prop-row {
+  margin-bottom: 10px;
+}
+.prop-row label {
+  font-size: 10px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 3px;
+  letter-spacing: 0.06em;
+}
+.prop-row span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.type-card {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.hint {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.6;
+}
