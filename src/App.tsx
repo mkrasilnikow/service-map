@@ -4,31 +4,25 @@
  * Orchestrates all child components and hooks:
  *   - useGraph — manages nodes, edges, selection
  *   - useDrag — handles node and edge control point dragging
- *   - useViewport — pan and zoom on the SVG canvas
+ *   - useCanvas — pan, zoom, and coordinate transform (g-transform approach)
  *   - useKeyboard — global keyboard shortcuts
- *
- * Manages application-level state:
- *   - Interaction mode (select / connect)
- *   - Modal visibility (add node, export, import)
- *   - Theme (dark / light, persisted to localStorage)
- *   - Connect-mode source tracking
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { InteractionMode, NodeTypeKey, GraphNode, GraphEdge } from './types';
 import { useGraph } from './hooks/useGraph';
 import { useDrag } from './hooks/useDrag';
-import { useViewport } from './hooks/useViewport';
+import { useCanvas } from './hooks/useCanvas';
 import { useKeyboard } from './hooks/useKeyboard';
 import { toMermaid, toSchemaExport } from './utils/export';
 import { Canvas } from './components/Canvas';
 import { Toolbar } from './components/Toolbar';
 import { Sidebar } from './components/Sidebar';
+import { CanvasControls } from './components/CanvasControls';
 import { AddNodeModal } from './components/modals/AddNodeModal';
 import { ExportModal } from './components/modals/ExportModal';
 import { ImportModal } from './components/modals/ImportModal';
 
-/** localStorage key for persisting the theme preference */
 const THEME_KEY = 'service-map-theme';
 
 export default function App() {
@@ -67,20 +61,19 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
-  /* --- Viewport (pan & zoom) --- */
+  /* --- Canvas (pan & zoom via g-transform) --- */
   const svgRef = useRef<SVGSVGElement | null>(null);
   const {
-    viewport,
-    getViewBox,
-    screenToSvg,
-    onWheel,
+    canvas,
+    isPanLocked,
+    screenToCanvas,
     onPanStart,
-    onPanMove,
-    onPanEnd,
+    isPanning,
     zoomIn,
     zoomOut,
-    resetZoom,
-  } = useViewport(svgRef);
+    fitView,
+    toggleLock,
+  } = useCanvas(svgRef);
 
   /* --- Drag (nodes + edge control points) --- */
   const {
@@ -88,21 +81,20 @@ export default function App() {
     onEdgeControlMouseDown,
     onSvgMouseMove: dragMouseMove,
     onSvgMouseUp: dragMouseUp,
-  } = useDrag(nodes, edges, updateNode, updateEdge, screenToSvg);
+    isDragging,
+  } = useDrag(nodes, edges, updateNode, updateEdge, screenToCanvas);
 
-  /* --- Combined mouse move/up for both drag and pan --- */
+  /* --- Combined mouse move for drag --- */
   const onSvgMouseMove = useCallback(
     (e: React.MouseEvent) => {
       dragMouseMove(e);
-      onPanMove(e);
     },
-    [dragMouseMove, onPanMove],
+    [dragMouseMove],
   );
 
   const onSvgMouseUp = useCallback(() => {
     dragMouseUp();
-    onPanEnd();
-  }, [dragMouseUp, onPanEnd]);
+  }, [dragMouseUp]);
 
   /* --- Keyboard --- */
   const resetMode = useCallback(() => {
@@ -152,17 +144,21 @@ export default function App() {
     [setSelected],
   );
 
-  /* --- Canvas click: deselect --- */
+  /* --- Canvas click: deselect (only if not panning/dragging) --- */
   const onSvgClick = useCallback(() => {
-    setSelected(null);
-  }, [setSelected]);
+    if (!isPanning() && !isDragging()) {
+      setSelected(null);
+    }
+  }, [setSelected, isPanning, isDragging]);
 
-  /* --- Canvas mouse down: pan start --- */
+  /* --- Canvas mouse down: start pan on left click on empty area --- */
   const onSvgMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      onPanStart(e);
+      /* Only left button, only in select mode, and only on empty canvas */
+      if (e.button !== 0 || mode === 'connect') return;
+      onPanStart(e.clientX, e.clientY);
     },
-    [onPanStart],
+    [mode, onPanStart],
   );
 
   /* --- Mode change --- */
@@ -217,13 +213,9 @@ export default function App() {
         onExport={() => setShowExport(true)}
         onImport={() => setShowImport(true)}
         onToggleTheme={() => setIsDark(prev => !prev)}
-        zoomLevel={viewport.scale}
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onZoomReset={resetZoom}
       />
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
         <Canvas
           nodes={nodes}
           edges={edges}
@@ -232,7 +224,10 @@ export default function App() {
           connectFrom={connectFrom}
           isDark={isDark}
           svgRef={svgRef}
-          viewBox={getViewBox()}
+          panX={canvas.panX}
+          panY={canvas.panY}
+          zoom={canvas.zoom}
+          isPanLocked={isPanLocked}
           onNodeMouseDown={onNodeMouseDown}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
@@ -241,7 +236,15 @@ export default function App() {
           onSvgMouseUp={onSvgMouseUp}
           onSvgMouseDown={onSvgMouseDown}
           onSvgClick={onSvgClick}
-          onWheel={onWheel}
+        />
+
+        <CanvasControls
+          zoom={canvas.zoom}
+          isPanLocked={isPanLocked}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onFitView={() => fitView(nodes)}
+          onToggleLock={toggleLock}
         />
 
         <Sidebar

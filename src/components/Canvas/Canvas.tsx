@@ -2,30 +2,12 @@
  * @file Canvas component — the main SVG drawing area.
  *
  * Renders all nodes and edges on an SVG element with:
- *   - Dot-grid background pattern (via SVG pattern, scales with zoom)
- *   - Pan & zoom via viewBox
+ *   - Dot-grid background pattern
+ *   - Pan & zoom via <g transform="translate(panX, panY) scale(zoom)">
  *   - Arrow markers for edge endpoints
  *   - Namespace group rectangles (dashed outlines with labels)
- *   - Mouse event handlers for drag, click, pan, and zoom
+ *   - Mouse event handlers for drag and click
  *   - Connect-mode visual indicator (pulsing circle)
- *
- * @param props.nodes - Array of all graph nodes.
- * @param props.edges - Array of all graph edges.
- * @param props.selected - Currently selected element (or null).
- * @param props.mode - Current interaction mode.
- * @param props.connectFrom - Source node ID in connect mode (or null).
- * @param props.isDark - Whether dark theme is active.
- * @param props.svgRef - Ref to the SVG element.
- * @param props.viewBox - The viewBox string for pan/zoom.
- * @param props.onNodeMouseDown - Handler for starting a drag on a node.
- * @param props.onNodeClick - Handler for clicking a node.
- * @param props.onEdgeClick - Handler for clicking an edge.
- * @param props.onEdgeControlDragStart - Handler for starting to drag an edge control point.
- * @param props.onSvgMouseMove - Handler for mouse move (drag/pan tracking).
- * @param props.onSvgMouseUp - Handler for mouse up (end drag/pan).
- * @param props.onSvgMouseDown - Handler for mouse down on canvas (pan start).
- * @param props.onSvgClick - Handler for clicking empty canvas area.
- * @param props.onWheel - Handler for mouse wheel (zoom).
  */
 
 import { useMemo } from 'react';
@@ -47,7 +29,10 @@ interface CanvasProps {
   connectFrom: string | null;
   isDark: boolean;
   svgRef: React.RefObject<SVGSVGElement | null>;
-  viewBox: string;
+  panX: number;
+  panY: number;
+  zoom: number;
+  isPanLocked: boolean;
   onNodeMouseDown: (e: React.MouseEvent, nodeId: string) => void;
   onNodeClick: (e: React.MouseEvent, nodeId: string) => void;
   onEdgeClick: (e: React.MouseEvent, edgeId: string) => void;
@@ -56,7 +41,6 @@ interface CanvasProps {
   onSvgMouseUp: () => void;
   onSvgMouseDown: (e: React.MouseEvent) => void;
   onSvgClick: () => void;
-  onWheel: (e: React.WheelEvent) => void;
 }
 
 /** Computed bounding box for a namespace group */
@@ -123,7 +107,10 @@ export function Canvas({
   connectFrom,
   isDark,
   svgRef,
-  viewBox,
+  panX,
+  panY,
+  zoom,
+  isPanLocked,
   onNodeMouseDown,
   onNodeClick,
   onEdgeClick,
@@ -132,29 +119,26 @@ export function Canvas({
   onSvgMouseUp,
   onSvgMouseDown,
   onSvgClick,
-  onWheel,
 }: CanvasProps) {
   const arrowFill = isDark ? '#334155' : '#94a3b8';
   const nsGroups = useMemo(() => computeNamespaceGroups(nodes), [nodes]);
   const dotColor = isDark ? '#1e3a5f' : '#cbd5e1';
 
+  const cursor = mode === 'connect'
+    ? (connectFrom ? 'crosshair' : 'copy')
+    : isPanLocked ? 'default' : 'grab';
+
   return (
     <svg
       ref={svgRef}
-      viewBox={viewBox}
-      preserveAspectRatio="xMinYMin meet"
-      style={{
-        flex: 1,
-        cursor: mode === 'connect' ? (connectFrom ? 'crosshair' : 'copy') : 'default',
-      }}
+      width="100%"
+      height="100%"
+      style={{ flex: 1, cursor }}
       onMouseMove={onSvgMouseMove}
-      onMouseUp={() => {
-        onSvgMouseUp();
-      }}
+      onMouseUp={onSvgMouseUp}
       onMouseLeave={onSvgMouseUp}
       onMouseDown={onSvgMouseDown}
       onClick={onSvgClick}
-      onWheel={onWheel}
       onContextMenu={e => e.preventDefault()}
     >
       <defs>
@@ -171,98 +155,100 @@ export function Canvas({
         >
           <path d="M0,0 L0,6 L8,3 z" fill="#60a5fa" />
         </marker>
-        {/* Dot-grid pattern that scales with viewBox */}
         <pattern id="dot-grid" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
           <circle cx="14" cy="14" r="1" fill={dotColor} opacity="0.15" />
         </pattern>
       </defs>
 
-      {/* Background grid */}
-      <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dot-grid)" />
+      {/* Transform group: all canvas content lives here */}
+      <g transform={`translate(${panX}, ${panY}) scale(${zoom})`}>
+        {/* Background grid */}
+        <rect x="-10000" y="-10000" width="20000" height="20000" fill="url(#dot-grid)" />
 
-      {/* Namespace group rectangles (rendered below everything) */}
-      {nsGroups.map(group => (
-        <g key={`ns-${group.namespace}`}>
-          <rect
-            x={group.x}
-            y={group.y}
-            width={group.width}
-            height={group.height}
-            rx={8}
-            ry={8}
-            fill="none"
-            stroke={isDark ? '#1e3a5f' : '#94a3b8'}
-            strokeWidth={1}
-            strokeDasharray="6,4"
-            opacity={0.6}
-          />
-          <text
-            x={group.x + 8}
-            y={group.y + 14}
-            fill={isDark ? '#475569' : '#64748b'}
-            fontSize={11}
-            fontFamily="inherit"
-            letterSpacing="0.06em"
-            fontWeight={500}
-          >
-            {group.namespace}
-          </text>
-        </g>
-      ))}
-
-      {/* Edges (rendered below nodes) */}
-      {edges.map(edge => {
-        const sourceCenter = getNodeCenter(nodes, edge.source);
-        const targetCenter = getNodeCenter(nodes, edge.target);
-        return (
-          <EdgeLine
-            key={edge.id}
-            edge={edge}
-            sourceCenter={sourceCenter}
-            targetCenter={targetCenter}
-            isSelected={selected?.id === edge.id}
-            isDark={isDark}
-            onClick={onEdgeClick}
-            onControlDragStart={onEdgeControlDragStart}
-          />
-        );
-      })}
-
-      {/* Nodes */}
-      {nodes.map(node => {
-        const config = NODE_TYPES[node.type];
-        return (
-          <NodeCard
-            key={node.id}
-            node={node}
-            config={config}
-            isSelected={selected?.id === node.id}
-            isConnectSource={connectFrom === node.id}
-            isDark={isDark}
-            mode={mode}
-            onMouseDown={onNodeMouseDown}
-            onClick={onNodeClick}
-          />
-        );
-      })}
-
-      {/* Connect mode: pulsing circle on source node */}
-      {connectFrom &&
-        (() => {
-          const cn = getNodeCenter(nodes, connectFrom);
-          return (
-            <circle
-              cx={cn.x}
-              cy={cn.y}
-              r={10}
+        {/* Namespace group rectangles */}
+        {nsGroups.map(group => (
+          <g key={`ns-${group.namespace}`}>
+            <rect
+              x={group.x}
+              y={group.y}
+              width={group.width}
+              height={group.height}
+              rx={8}
+              ry={8}
               fill="none"
-              stroke="#f97316"
-              strokeWidth={2}
-              strokeDasharray="4,3"
-              opacity={0.8}
+              stroke={isDark ? '#1e3a5f' : '#94a3b8'}
+              strokeWidth={1}
+              strokeDasharray="6,4"
+              opacity={0.6}
+            />
+            <text
+              x={group.x + 8}
+              y={group.y + 14}
+              fill={isDark ? '#475569' : '#64748b'}
+              fontSize={11}
+              fontFamily="inherit"
+              letterSpacing="0.06em"
+              fontWeight={500}
+            >
+              {group.namespace}
+            </text>
+          </g>
+        ))}
+
+        {/* Edges */}
+        {edges.map(edge => {
+          const sourceCenter = getNodeCenter(nodes, edge.source);
+          const targetCenter = getNodeCenter(nodes, edge.target);
+          return (
+            <EdgeLine
+              key={edge.id}
+              edge={edge}
+              sourceCenter={sourceCenter}
+              targetCenter={targetCenter}
+              isSelected={selected?.id === edge.id}
+              isDark={isDark}
+              onClick={onEdgeClick}
+              onControlDragStart={onEdgeControlDragStart}
             />
           );
-        })()}
+        })}
+
+        {/* Nodes */}
+        {nodes.map(node => {
+          const config = NODE_TYPES[node.type];
+          return (
+            <NodeCard
+              key={node.id}
+              node={node}
+              config={config}
+              isSelected={selected?.id === node.id}
+              isConnectSource={connectFrom === node.id}
+              isDark={isDark}
+              mode={mode}
+              onMouseDown={onNodeMouseDown}
+              onClick={onNodeClick}
+            />
+          );
+        })}
+
+        {/* Connect mode: pulsing circle on source node */}
+        {connectFrom &&
+          (() => {
+            const cn = getNodeCenter(nodes, connectFrom);
+            return (
+              <circle
+                cx={cn.x}
+                cy={cn.y}
+                r={10}
+                fill="none"
+                stroke="#f97316"
+                strokeWidth={2}
+                strokeDasharray="4,3"
+                opacity={0.8}
+              />
+            );
+          })()}
+      </g>
     </svg>
   );
 }
