@@ -3,13 +3,7 @@
  *
  * Tracks mouse events to compute position deltas and update
  * the dragged element's coordinates in real time.
- * Supports viewport transforms (zoom/pan) via a screenToSvg converter.
- *
- * @param nodes - Current list of graph nodes.
- * @param edges - Current list of graph edges (for edge control dragging).
- * @param updateNode - Function to patch a node's properties by ID.
- * @param updateEdge - Function to patch an edge's properties by ID.
- * @param screenToSvg - Converts screen coordinates to SVG coordinates.
+ * Supports canvas transforms (zoom/pan) via a screenToCanvas converter.
  */
 
 import { useRef, useCallback } from 'react';
@@ -26,32 +20,22 @@ interface EdgeDragState {
 
 /**
  * Hook that provides mouse event handlers for dragging nodes and edge control points.
- *
- * @param nodes - Current list of graph nodes (used to read original position).
- * @param edges - Current list of graph edges (used to read original control offset).
- * @param updateNode - Callback to update a node's x/y.
- * @param updateEdge - Callback to update an edge's controlOffsetX/Y.
- * @param screenToSvg - Converts (clientX, clientY) to SVG-space coordinates.
- * @returns Object with handlers for node drag, edge control drag, and shared move/up.
  */
 export function useDrag(
   nodes: GraphNode[],
   edges: GraphEdge[],
   updateNode: (id: string, patch: Partial<GraphNode>) => void,
   updateEdge: (id: string, patch: Partial<GraphEdge>) => void,
-  screenToSvg: (clientX: number, clientY: number) => { x: number; y: number },
+  screenToCanvas: (clientX: number, clientY: number) => { x: number; y: number },
 ) {
   const nodeDragRef = useRef<DragState | null>(null);
   const edgeDragRef = useRef<EdgeDragState | null>(null);
 
-  /**
-   * Start dragging a node.
-   * Records the initial SVG position and the node's original coordinates.
-   */
+  /** Start dragging a node */
   const onNodeMouseDown = useCallback(
     (e: React.MouseEvent, nodeId: string) => {
       e.stopPropagation();
-      const { x, y } = screenToSvg(e.clientX, e.clientY);
+      const { x, y } = screenToCanvas(e.clientX, e.clientY);
       const node = nodes.find(n => n.id === nodeId);
       if (!node) return;
       nodeDragRef.current = {
@@ -62,17 +46,14 @@ export function useDrag(
         origY: node.y,
       };
     },
-    [nodes, screenToSvg],
+    [nodes, screenToCanvas],
   );
 
-  /**
-   * Start dragging an edge control point.
-   * Records the initial SVG position and the edge's original offset.
-   */
+  /** Start dragging an edge control point */
   const onEdgeControlMouseDown = useCallback(
     (e: React.MouseEvent, edgeId: string) => {
       e.stopPropagation();
-      const { x, y } = screenToSvg(e.clientX, e.clientY);
+      const { x, y } = screenToCanvas(e.clientX, e.clientY);
       const edge = edges.find(ed => ed.id === edgeId);
       if (!edge) return;
       edgeDragRef.current = {
@@ -83,14 +64,14 @@ export function useDrag(
         origOffsetY: edge.controlOffsetY ?? 0,
       };
     },
-    [edges, screenToSvg],
+    [edges, screenToCanvas],
   );
 
   /** Update the dragged element based on current mouse position */
   const onSvgMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (nodeDragRef.current) {
-        const { x, y } = screenToSvg(e.clientX, e.clientY);
+        const { x, y } = screenToCanvas(e.clientX, e.clientY);
         const dx = x - nodeDragRef.current.startX;
         const dy = y - nodeDragRef.current.startY;
         updateNode(nodeDragRef.current.nodeId, {
@@ -98,7 +79,7 @@ export function useDrag(
           y: nodeDragRef.current.origY + dy,
         });
       } else if (edgeDragRef.current) {
-        const { x, y } = screenToSvg(e.clientX, e.clientY);
+        const { x, y } = screenToCanvas(e.clientX, e.clientY);
         const dx = x - edgeDragRef.current.startX;
         const dy = y - edgeDragRef.current.startY;
         updateEdge(edgeDragRef.current.edgeId, {
@@ -107,7 +88,7 @@ export function useDrag(
         });
       }
     },
-    [screenToSvg, updateNode, updateEdge],
+    [screenToCanvas, updateNode, updateEdge],
   );
 
   /** End any active drag operation */
@@ -116,5 +97,11 @@ export function useDrag(
     edgeDragRef.current = null;
   }, []);
 
-  return { onNodeMouseDown, onEdgeControlMouseDown, onSvgMouseMove, onSvgMouseUp };
+  /** Whether a drag operation is active */
+  const isDragging = useCallback(
+    () => nodeDragRef.current !== null || edgeDragRef.current !== null,
+    [],
+  );
+
+  return { onNodeMouseDown, onEdgeControlMouseDown, onSvgMouseMove, onSvgMouseUp, isDragging };
 }

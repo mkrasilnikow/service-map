@@ -7,28 +7,12 @@
  *   - ADD NODE button
  *   - DELETE button (when an element is selected)
  *   - Node/edge count stats
- *   - EXPORT button
- *   - IMPORT button
- *   - Theme toggle (🌙 / ☀️)
- *
- * @param props.mode - Current interaction mode.
- * @param props.connectFrom - ID of the connect-source node (if in connect mode).
- * @param props.hasSelection - Whether an element is currently selected.
- * @param props.selectedKind - Whether the selected element is a "node" or "edge".
- * @param props.nodeCount - Total number of nodes.
- * @param props.edgeCount - Total number of edges.
- * @param props.isDark - Whether dark theme is active.
- * @param props.onModeChange - Callback to switch interaction mode.
- * @param props.onAddNode - Callback to open the Add Node modal.
- * @param props.onDelete - Callback to delete the selected element.
- * @param props.onExport - Callback to open the Export modal.
- * @param props.onImport - Callback to open the Import modal.
- * @param props.onToggleTheme - Callback to toggle light/dark theme.
+ *   - EXPORT / IMPORT buttons
+ *   - Theme toggle
  */
 
 import type { InteractionMode } from '../../types';
 
-/** UI string constants */
 const LABELS = {
   TITLE: '◈ SERVICE MAP',
   SELECT: '↖ SELECT',
@@ -39,9 +23,6 @@ const LABELS = {
   DELETE_EDGE: '✕ DELETE EDGE',
   EXPORT: '⬡ EXPORT',
   IMPORT: '⬡ IMPORT',
-  ZOOM_IN: '+',
-  ZOOM_OUT: '−',
-  ZOOM_RESET: '⊙',
 } as const;
 
 interface ToolbarProps {
@@ -58,10 +39,6 @@ interface ToolbarProps {
   onExport: () => void;
   onImport: () => void;
   onToggleTheme: () => void;
-  zoomLevel: number;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onZoomReset: () => void;
 }
 
 export function Toolbar({
@@ -78,10 +55,6 @@ export function Toolbar({
   onExport,
   onImport,
   onToggleTheme,
-  zoomLevel,
-  onZoomIn,
-  onZoomOut,
-  onZoomReset,
 }: ToolbarProps) {
   return (
     <div
@@ -146,21 +119,6 @@ export function Toolbar({
       </button>
       <button className="toolbar-btn" onClick={onExport}>
         {LABELS.EXPORT}
-      </button>
-
-      <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
-
-      <button className="toolbar-btn" onClick={onZoomIn} title="Zoom in">
-        {LABELS.ZOOM_IN}
-      </button>
-      <span style={{ fontSize: 10, color: 'var(--muted)', minWidth: 36, textAlign: 'center' }}>
-        {Math.round((1 / zoomLevel) * 100)}%
-      </span>
-      <button className="toolbar-btn" onClick={onZoomOut} title="Zoom out">
-        {LABELS.ZOOM_OUT}
-      </button>
-      <button className="toolbar-btn" onClick={onZoomReset} title="Reset zoom">
-        {LABELS.ZOOM_RESET}
       </button>
 
       <button
