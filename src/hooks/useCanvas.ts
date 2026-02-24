@@ -14,7 +14,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { GraphNode } from '../types';
-import { NODE_W, NODE_H } from '../constants/nodeTypes';
+import { getNodeSize } from '../constants/nodeTypes';
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3.0;
@@ -183,10 +183,11 @@ export function useCanvas(svgRef: React.RefObject<SVGSVGElement | null>) {
 
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const n of nodes) {
+        const { w, h } = getNodeSize(n);
         minX = Math.min(minX, n.x);
         minY = Math.min(minY, n.y);
-        maxX = Math.max(maxX, n.x + NODE_W);
-        maxY = Math.max(maxY, n.y + NODE_H);
+        maxX = Math.max(maxX, n.x + w);
+        maxY = Math.max(maxY, n.y + h);
       }
 
       const contentW = maxX - minX + FIT_PADDING * 2;

@@ -1,5 +1,5 @@
 /**
- * @file Drag-and-drop hook for moving nodes and edge control points on the SVG canvas.
+ * @file Drag-and-drop hook for moving nodes, edge control points, and resizing nodes.
  *
  * Tracks mouse events to compute position deltas and update
  * the dragged element's coordinates in real time.
@@ -8,6 +8,7 @@
 
 import { useRef, useCallback } from 'react';
 import type { DragState, GraphNode, GraphEdge } from '../types';
+import { NODE_W, NODE_H } from '../constants/nodeTypes';
 
 /** State for dragging an edge control point */
 interface EdgeDragState {
@@ -18,8 +19,22 @@ interface EdgeDragState {
   origOffsetY: number;
 }
 
+/** State for resizing a node */
+interface ResizeDragState {
+  nodeId: string;
+  startX: number;
+  startY: number;
+  origW: number;
+  origH: number;
+}
+
+const MIN_W = 120;
+const MIN_H = 48;
+const MAX_W = 400;
+const MAX_H = 200;
+
 /**
- * Hook that provides mouse event handlers for dragging nodes and edge control points.
+ * Hook that provides mouse event handlers for dragging nodes, edge control points, and resizing nodes.
  */
 export function useDrag(
   nodes: GraphNode[],
@@ -30,6 +45,7 @@ export function useDrag(
 ) {
   const nodeDragRef = useRef<DragState | null>(null);
   const edgeDragRef = useRef<EdgeDragState | null>(null);
+  const resizeDragRef = useRef<ResizeDragState | null>(null);
 
   /** Start dragging a node */
   const onNodeMouseDown = useCallback(
@@ -67,6 +83,24 @@ export function useDrag(
     [edges, screenToCanvas],
   );
 
+  /** Start resizing a node */
+  const onResizeMouseDown = useCallback(
+    (e: React.MouseEvent, nodeId: string) => {
+      e.stopPropagation();
+      const { x, y } = screenToCanvas(e.clientX, e.clientY);
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node) return;
+      resizeDragRef.current = {
+        nodeId,
+        startX: x,
+        startY: y,
+        origW: node.width ?? NODE_W,
+        origH: node.height ?? NODE_H,
+      };
+    },
+    [nodes, screenToCanvas],
+  );
+
   /** Update the dragged element based on current mouse position */
   const onSvgMouseMove = useCallback(
     (e: React.MouseEvent) => {
@@ -78,6 +112,13 @@ export function useDrag(
           x: nodeDragRef.current.origX + dx,
           y: nodeDragRef.current.origY + dy,
         });
+      } else if (resizeDragRef.current) {
+        const { x, y } = screenToCanvas(e.clientX, e.clientY);
+        const dx = x - resizeDragRef.current.startX;
+        const dy = y - resizeDragRef.current.startY;
+        const newW = Math.min(MAX_W, Math.max(MIN_W, resizeDragRef.current.origW + dx));
+        const newH = Math.min(MAX_H, Math.max(MIN_H, resizeDragRef.current.origH + dy));
+        updateNode(resizeDragRef.current.nodeId, { width: newW, height: newH });
       } else if (edgeDragRef.current) {
         const { x, y } = screenToCanvas(e.clientX, e.clientY);
         const dx = x - edgeDragRef.current.startX;
@@ -95,13 +136,14 @@ export function useDrag(
   const onSvgMouseUp = useCallback(() => {
     nodeDragRef.current = null;
     edgeDragRef.current = null;
+    resizeDragRef.current = null;
   }, []);
 
   /** Whether a drag operation is active */
   const isDragging = useCallback(
-    () => nodeDragRef.current !== null || edgeDragRef.current !== null,
+    () => nodeDragRef.current !== null || edgeDragRef.current !== null || resizeDragRef.current !== null,
     [],
   );
 
-  return { onNodeMouseDown, onEdgeControlMouseDown, onSvgMouseMove, onSvgMouseUp, isDragging };
+  return { onNodeMouseDown, onEdgeControlMouseDown, onResizeMouseDown, onSvgMouseMove, onSvgMouseUp, isDragging };
 }

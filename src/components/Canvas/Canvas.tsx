@@ -12,7 +12,7 @@
 
 import { useMemo } from 'react';
 import type { GraphNode, GraphEdge, Selection, InteractionMode } from '../../types';
-import { NODE_TYPES, NODE_W, NODE_H } from '../../constants/nodeTypes';
+import { NODE_TYPES, getNodeSize } from '../../constants/nodeTypes';
 import { NodeCard } from '../NodeCard';
 import { EdgeLine } from '../EdgeLine';
 
@@ -37,6 +37,7 @@ interface CanvasProps {
   onNodeClick: (e: React.MouseEvent, nodeId: string) => void;
   onEdgeClick: (e: React.MouseEvent, edgeId: string) => void;
   onEdgeControlDragStart: (e: React.MouseEvent, edgeId: string) => void;
+  onResizeStart: (e: React.MouseEvent, nodeId: string) => void;
   onSvgMouseMove: (e: React.MouseEvent) => void;
   onSvgMouseUp: () => void;
   onSvgMouseDown: (e: React.MouseEvent) => void;
@@ -56,7 +57,8 @@ interface NamespaceGroup {
 function getNodeCenter(nodes: GraphNode[], nodeId: string): { x: number; y: number } {
   const n = nodes.find(nd => nd.id === nodeId);
   if (!n) return { x: 0, y: 0 };
-  return { x: n.x + NODE_W / 2, y: n.y + NODE_H / 2 };
+  const { w, h } = getNodeSize(n);
+  return { x: n.x + w / 2, y: n.y + h / 2 };
 }
 
 /**
@@ -81,10 +83,11 @@ function computeNamespaceGroups(nodes: GraphNode[]): NamespaceGroup[] {
       maxY = -Infinity;
 
     for (const n of nsNodes) {
+      const { w, h } = getNodeSize(n);
       minX = Math.min(minX, n.x);
       minY = Math.min(minY, n.y);
-      maxX = Math.max(maxX, n.x + NODE_W);
-      maxY = Math.max(maxY, n.y + NODE_H);
+      maxX = Math.max(maxX, n.x + w);
+      maxY = Math.max(maxY, n.y + h);
     }
 
     result.push({
@@ -115,6 +118,7 @@ export function Canvas({
   onNodeClick,
   onEdgeClick,
   onEdgeControlDragStart,
+  onResizeStart,
   onSvgMouseMove,
   onSvgMouseUp,
   onSvgMouseDown,
@@ -227,6 +231,7 @@ export function Canvas({
               mode={mode}
               onMouseDown={onNodeMouseDown}
               onClick={onNodeClick}
+              onResizeStart={onResizeStart}
             />
           );
         })}

@@ -11,7 +11,7 @@
  */
 
 import type { GraphNode, GraphEdge } from '../types';
-import { NODE_W, NODE_H } from '../constants/nodeTypes';
+import { NODE_W, getNodeSize } from '../constants/nodeTypes';
 
 /** Minimum horizontal gap between columns */
 const COL_GAP = 80;
@@ -96,14 +96,19 @@ export function computeLayout(nodes: GraphNode[], edges: GraphEdge[]): GraphNode
   const sortedCols = [...columns.keys()].sort((a, b) => a - b);
   const result: GraphNode[] = [];
 
+  /* Compute max width for each column to determine x offsets */
+  let xOffset = 60;
   for (const colIdx of sortedCols) {
     const colNodes = columns.get(colIdx)!;
-    const x = 60 + colIdx * (NODE_W + COL_GAP);
+    const maxColW = Math.max(...colNodes.map(n => getNodeSize(n).w), NODE_W);
 
+    let yOffset = 60;
     for (let row = 0; row < colNodes.length; row++) {
-      const y = 60 + row * (NODE_H + ROW_GAP);
-      result.push({ ...colNodes[row], x, y });
+      const { h } = getNodeSize(colNodes[row]);
+      result.push({ ...colNodes[row], x: xOffset, y: yOffset });
+      yOffset += h + ROW_GAP;
     }
+    xOffset += maxColW + COL_GAP;
   }
 
   return result;
