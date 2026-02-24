@@ -6,13 +6,11 @@
  *   - An icon and the service name (single line, truncated if long)
  *   - A type label (e.g. "SPRING BOOT")
  *   - Selection glow / connect-mode highlight
+ *   - Resize handle at bottom-right (visible when selected)
  */
 
 import type { GraphNode, InteractionMode, NodeTypeConfig } from '../../types';
 import { NODE_W, NODE_H } from '../../constants/nodeTypes';
-
-/** Max characters before truncation */
-const MAX_NAME_LEN = 18;
 
 interface NodeCardProps {
   node: GraphNode;
@@ -23,6 +21,7 @@ interface NodeCardProps {
   mode: InteractionMode;
   onMouseDown: (e: React.MouseEvent, nodeId: string) => void;
   onClick: (e: React.MouseEvent, nodeId: string) => void;
+  onResizeStart?: (e: React.MouseEvent, nodeId: string) => void;
 }
 
 export function NodeCard({
@@ -34,15 +33,20 @@ export function NodeCard({
   mode,
   onMouseDown,
   onClick,
+  onResizeStart,
 }: NodeCardProps) {
+  const nodeW = node.width ?? NODE_W;
+  const nodeH = node.height ?? NODE_H;
+
   const bg = isDark ? config.bgDark : config.bgLight;
   const border = isDark ? config.borderDark : config.borderLight;
   const highlighted = isSelected || isConnectSource;
   const strokeColor = highlighted ? config.color : border + '60';
 
+  const maxNameLen = Math.floor((nodeW - 46) / 7);
   const displayName =
-    node.name.length > MAX_NAME_LEN
-      ? node.name.slice(0, MAX_NAME_LEN - 1) + '\u2026'
+    node.name.length > maxNameLen
+      ? node.name.slice(0, maxNameLen - 1) + '\u2026'
       : node.name;
 
   return (
@@ -57,8 +61,8 @@ export function NodeCard({
         <rect
           x={-3}
           y={-3}
-          width={NODE_W + 6}
-          height={NODE_H + 6}
+          width={nodeW + 6}
+          height={nodeH + 6}
           rx={11}
           ry={11}
           fill="none"
@@ -72,8 +76,8 @@ export function NodeCard({
       {/* Card background */}
       <rect
         className="node-rect"
-        width={NODE_W}
-        height={NODE_H}
+        width={nodeW}
+        height={nodeH}
         rx={8}
         ry={8}
         fill={bg}
@@ -83,7 +87,7 @@ export function NodeCard({
       />
 
       {/* Top accent bars */}
-      <rect width={NODE_W} height={3} fill={config.color} opacity={0.7} />
+      <rect width={nodeW} height={3} fill={config.color} opacity={0.7} />
       <rect width={40} height={3} fill={config.color} />
 
       {/* Icon */}
@@ -114,6 +118,39 @@ export function NodeCard({
       >
         {config.label.toUpperCase()}
       </text>
+
+      {/* Resize handle — visible only when selected */}
+      {isSelected && onResizeStart && (
+        <g
+          onMouseDown={e => {
+            e.stopPropagation();
+            onResizeStart(e, node.id);
+          }}
+          style={{ cursor: 'nwse-resize' }}
+        >
+          <rect
+            x={nodeW - 14}
+            y={nodeH - 14}
+            width={14}
+            height={14}
+            fill="transparent"
+          />
+          <path
+            d={`M${nodeW - 3} ${nodeH - 10} L${nodeW - 3} ${nodeH - 3} L${nodeW - 10} ${nodeH - 3}`}
+            fill="none"
+            stroke={config.color}
+            strokeWidth={1.5}
+            opacity={0.6}
+          />
+          <path
+            d={`M${nodeW - 3} ${nodeH - 6} L${nodeW - 3} ${nodeH - 3} L${nodeW - 6} ${nodeH - 3}`}
+            fill="none"
+            stroke={config.color}
+            strokeWidth={1.5}
+            opacity={0.8}
+          />
+        </g>
+      )}
     </g>
   );
 }

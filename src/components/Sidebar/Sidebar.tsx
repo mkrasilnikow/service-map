@@ -17,7 +17,7 @@
  */
 
 import type { GraphNode, GraphEdge, NodeTypeKey, IntegrationTypeKey } from '../../types';
-import { NODE_TYPES } from '../../constants/nodeTypes';
+import { NODE_TYPES, NODE_W, NODE_H } from '../../constants/nodeTypes';
 import { EDGE_TYPES, EDGE_TYPE_KEYS } from '../../constants/edgeTypes';
 
 /** UI string constants */
@@ -37,6 +37,10 @@ const LABELS = {
   INTEGRATION_TYPE: 'INTEGRATION TYPE',
   NAMESPACE: 'NAMESPACE',
   NAMESPACE_PLACEHOLDER: 'e.g. backend, infra',
+  SIZE: 'SIZE',
+  WIDTH: 'W',
+  HEIGHT: 'H',
+  RESET_SIZE: '↺ Reset',
   REMOVE_NODE: '✕ REMOVE NODE',
   REMOVE_EDGE: '✕ REMOVE EDGE',
   NONE: '— none —',
@@ -125,6 +129,46 @@ export function Sidebar({
               })
             }
           />
+        </div>
+
+        <div className="prop-row">
+          <label>{LABELS.SIZE}</label>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span style={{ fontSize: 9, color: 'var(--muted)' }}>{LABELS.WIDTH}</span>
+            <input
+              className="sidebar-input"
+              type="number"
+              style={{ width: 54 }}
+              value={selectedNode.width ?? NODE_W}
+              min={120}
+              max={400}
+              onChange={e => {
+                const v = parseInt(e.target.value, 10);
+                if (!isNaN(v)) onUpdateNode(selectedNode.id, { width: Math.min(400, Math.max(120, v)) });
+              }}
+            />
+            <span style={{ fontSize: 9, color: 'var(--muted)' }}>{LABELS.HEIGHT}</span>
+            <input
+              className="sidebar-input"
+              type="number"
+              style={{ width: 54 }}
+              value={selectedNode.height ?? NODE_H}
+              min={48}
+              max={200}
+              onChange={e => {
+                const v = parseInt(e.target.value, 10);
+                if (!isNaN(v)) onUpdateNode(selectedNode.id, { height: Math.min(200, Math.max(48, v)) });
+              }}
+            />
+            <button
+              className="toolbar-btn"
+              style={{ fontSize: 9, padding: '2px 6px' }}
+              title="Reset to default size"
+              onClick={() => onUpdateNode(selectedNode.id, { width: undefined, height: undefined })}
+            >
+              {LABELS.RESET_SIZE}
+            </button>
+          </div>
         </div>
 
         <div className="prop-row">

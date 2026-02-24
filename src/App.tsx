@@ -79,6 +79,7 @@ export default function App() {
   const {
     onNodeMouseDown: dragMouseDown,
     onEdgeControlMouseDown,
+    onResizeMouseDown,
     onSvgMouseMove: dragMouseMove,
     onSvgMouseUp: dragMouseUp,
     isDragging,
@@ -232,6 +233,7 @@ export default function App() {
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
           onEdgeControlDragStart={onEdgeControlMouseDown}
+          onResizeStart={onResizeMouseDown}
           onSvgMouseMove={onSvgMouseMove}
           onSvgMouseUp={onSvgMouseUp}
           onSvgMouseDown={onSvgMouseDown}

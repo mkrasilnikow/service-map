@@ -88,6 +88,10 @@ export interface GraphNode {
   y: number;
   /** Optional namespace for grouping */
   namespace?: string;
+  /** Custom width (defaults to NODE_W) */
+  width?: number;
+  /** Custom height (defaults to NODE_H) */
+  height?: number;
 }
 
 /**
