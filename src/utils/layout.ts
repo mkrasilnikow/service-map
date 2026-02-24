@@ -59,24 +59,23 @@ export function computeLayout(nodes: GraphNode[], edges: GraphEdge[]): GraphNode
     queue.push(src.id);
   }
 
-  // Assign remaining nodes that might be in cycles or disconnected
-  for (const node of nodes) {
-    if (!depth.has(node.id)) {
-      depth.set(node.id, 0);
-      queue.push(node.id);
-    }
-  }
-
+  // Each node is enqueued at most once — safe for graphs with cycles
   let head = 0;
   while (head < queue.length) {
     const current = queue[head++];
     const currentDepth = depth.get(current)!;
     for (const target of outgoing.get(current) ?? []) {
-      const existingDepth = depth.get(target) ?? -1;
-      if (currentDepth + 1 > existingDepth) {
+      if (!depth.has(target)) {
         depth.set(target, currentDepth + 1);
         queue.push(target);
       }
+    }
+  }
+
+  // Assign depth 0 to disconnected nodes or cycle-only components
+  for (const node of nodes) {
+    if (!depth.has(node.id)) {
+      depth.set(node.id, 0);
     }
   }
 
