@@ -100,7 +100,7 @@ export function computeLayout(nodes: GraphNode[], edges: GraphEdge[]): GraphNode
   let xOffset = 60;
   for (const colIdx of sortedCols) {
     const colNodes = columns.get(colIdx)!;
-    const maxColW = Math.max(...colNodes.map(n => getNodeSize(n).w), NODE_W);
+    const maxColW = colNodes.reduce((max, n) => Math.max(max, getNodeSize(n).w), NODE_W);
 
     let yOffset = 60;
     for (let row = 0; row < colNodes.length; row++) {

@@ -12,7 +12,7 @@
  * @param props.onClose - Callback to close the modal.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { GraphNode, GraphEdge } from '../../../types';
 import { importServiceSchema, importSchemaExport } from '../../../utils/import';
 
@@ -22,8 +22,9 @@ const LABELS = {
   FORMAT: 'FORMAT',
   SERVICE_SCHEMA: 'service-schema',
   SCHEMA_EXPORT: 'schema-export',
-  JSON_INPUT: 'PASTE JSON',
+  JSON_INPUT: 'PASTE JSON OR LOAD FILE',
   PLACEHOLDER: 'Paste your JSON here...',
+  LOAD_FILE: 'LOAD FILE',
   CANCEL: 'CANCEL',
   IMPORT: 'IMPORT',
 } as const;
@@ -39,6 +40,23 @@ export function ImportModal({ onImport, onClose }: ImportModalProps) {
   const [format, setFormat] = useState<ImportFormat>('service-schema');
   const [json, setJson] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = ev => {
+      setJson((ev.target?.result as string) ?? '');
+      setError(null);
+    };
+    reader.onerror = () => setError('Failed to read file.');
+    reader.readAsText(file);
+    // Reset so the same file can be loaded again if needed
+    e.target.value = '';
+  };
 
   const handleImport = () => {
     setError(null);
@@ -64,11 +82,32 @@ export function ImportModal({ onImport, onClose }: ImportModalProps) {
           <option value="schema-export">{LABELS.SCHEMA_EXPORT}</option>
         </select>
 
-        <label>{LABELS.JSON_INPUT}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <label style={{ margin: 0 }}>{LABELS.JSON_INPUT}</label>
+          <button
+            className="toolbar-btn"
+            style={{ marginLeft: 'auto', padding: '2px 10px', fontSize: 11 }}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {LABELS.LOAD_FILE}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: 'none' }}
+            onChange={handleFileLoad}
+          />
+        </div>
+        {fileName && (
+          <div style={{ fontSize: 11, color: '#86efac', marginBottom: 4 }}>
+            {fileName}
+          </div>
+        )}
         <textarea
           style={{ height: 200, resize: 'vertical', fontFamily: 'inherit', fontSize: 11 }}
           value={json}
-          onChange={e => setJson(e.target.value)}
+          onChange={e => { setJson(e.target.value); setFileName(null); }}
           placeholder={LABELS.PLACEHOLDER}
         />
 
