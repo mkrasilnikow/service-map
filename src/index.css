@@ -140,9 +140,101 @@ body {
   background: var(--success-hover-bg);
 }
 
-/* ─── Node hover effect ─── */
-.node-rect:hover {
-  filter: brightness(1.15);
+/* ─── React Flow overrides ─── */
+.react-flow__attribution {
+  display: none;
+}
+.react-flow__controls {
+  background: var(--btn-bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+.react-flow__controls-button {
+  background: var(--btn-bg) !important;
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--btn-text) !important;
+  fill: var(--btn-text) !important;
+}
+.react-flow__controls-button:hover {
+  background: var(--btn-hover-bg) !important;
+}
+.react-flow__controls-button svg {
+  fill: var(--btn-text) !important;
+  max-width: 12px;
+  max-height: 12px;
+}
+
+/* ─── Service node card ─── */
+.service-node-wrap {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  position: relative;
+  transition: box-shadow 0.15s;
+}
+
+.service-node-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.service-node-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px 8px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.service-node-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.service-node-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.service-node-name {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.service-node-type {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ─── Connection handles ─── */
+.service-handle {
+  opacity: 0;
+  width: 8px !important;
+  height: 8px !important;
+  border: 2px solid var(--accent) !important;
+  background: var(--bg) !important;
+  transition: opacity 0.15s;
+}
+
+.react-flow__node:hover .service-handle,
+.react-flow__node.selected .service-handle {
+  opacity: 1;
 }
 
 /* ─── Modal ─── */

@@ -1,12 +1,4 @@
-/**
- * @file Core TypeScript types and interfaces for the Service Map Editor.
- *
- * Defines the data structures used across the application:
- * - Graph elements (nodes, edges)
- * - Configuration types for node and edge styling
- * - Application state interfaces
- * - Selection and interaction mode types
- */
+import type { Node, Edge } from '@xyflow/react';
 
 /** Unique identifier for nodes and edges */
 export type NodeId = string;
@@ -32,113 +24,96 @@ export type IntegrationTypeKey =
   | 'db'
   | 'cache';
 
-/** Interaction mode for the canvas */
-export type InteractionMode = 'select' | 'connect';
-
 /**
  * Visual configuration for a single node type.
- * Defines how a node of this type is rendered on the canvas.
  */
 export interface NodeTypeConfig {
-  /** Human-readable label shown on the node card */
   label: string;
-  /** Primary text/accent color (hex) */
   color: string;
-  /** Card background color for light theme */
   bgLight: string;
-  /** Card background color for dark theme */
   bgDark: string;
-  /** Border color for light theme */
   borderLight: string;
-  /** Border color for dark theme */
   borderDark: string;
-  /** Emoji icon displayed on the card */
   icon: string;
-  /** Whether the card border should be dashed */
   dashed?: boolean;
 }
 
 /**
  * Visual configuration for an integration (edge) type.
- * Defines how the label/badge is styled on the edge.
  */
 export interface EdgeTypeConfig {
-  /** Human-readable label shown on the edge */
   label: string;
-  /** Badge text color */
   color: string;
-  /** Badge background color */
   bg: string;
 }
 
 /**
- * A single node on the service map canvas.
- * Represents a microservice, database, message broker, or external system.
+ * Canonical graph node used by import/export utilities and the Sidebar interface.
+ * Not stored in React Flow state directly — App.tsx converts to/from RFServiceNode.
  */
 export interface GraphNode {
-  /** Unique identifier */
   id: NodeId;
-  /** Display name shown on the node card */
   name: string;
-  /** Node type key referencing nodeTypes config */
   type: NodeTypeKey;
-  /** X coordinate on the canvas */
   x: number;
-  /** Y coordinate on the canvas */
   y: number;
-  /** Optional namespace for grouping */
   namespace?: string;
-  /** Custom width (defaults to NODE_W) */
   width?: number;
-  /** Custom height (defaults to NODE_H) */
   height?: number;
 }
 
 /**
- * A directed edge connecting two nodes on the canvas.
- * Represents an integration between two services.
+ * Canonical graph edge used by import/export utilities and the Sidebar interface.
  */
 export interface GraphEdge {
-  /** Unique identifier */
   id: EdgeId;
-  /** Source node ID */
   source: NodeId;
-  /** Target node ID */
   target: NodeId;
-  /** Optional integration type */
   type?: IntegrationTypeKey;
-  /** Optional human-readable label displayed on the edge */
   label?: string;
-  /** Manual X offset for the edge control point (for repositioning the curve) */
-  controlOffsetX?: number;
-  /** Manual Y offset for the edge control point (for repositioning the curve) */
-  controlOffsetY?: number;
 }
 
-/**
- * Represents the currently selected element on the canvas.
- * Can be either a node or an edge.
- */
+/** Currently selected element on the canvas */
 export interface Selection {
-  /** Whether the selected element is a node or an edge */
   kind: 'node' | 'edge';
-  /** ID of the selected element */
   id: string;
 }
 
-/**
- * Internal drag state used by the useDrag hook.
- * Tracks the node being dragged and its original position.
- */
-export interface DragState {
-  /** ID of the node being dragged */
-  nodeId: NodeId;
-  /** Mouse X at drag start (SVG coordinates) */
-  startX: number;
-  /** Mouse Y at drag start (SVG coordinates) */
-  startY: number;
-  /** Node's original X before drag */
-  origX: number;
-  /** Node's original Y before drag */
-  origY: number;
+// ─── React Flow node/edge data types ──────────────────────────────────────────
+
+/** Data stored inside a service node (extends Record for RF compatibility) */
+export interface ServiceNodeData extends Record<string, unknown> {
+  name: string;
+  nodeType: NodeTypeKey;
+  namespace?: string;
+}
+
+/** Data stored inside a service edge */
+export interface ServiceEdgeData extends Record<string, unknown> {
+  integrationType?: IntegrationTypeKey;
+  label?: string;
+}
+
+/** Data stored inside a namespace background node */
+export interface NamespaceNodeData extends Record<string, unknown> {
+  label: string;
+}
+
+/** React Flow node type for services */
+export type RFServiceNode = Node<ServiceNodeData, 'service'>;
+
+/** React Flow edge type for service integrations */
+export type RFServiceEdge = Edge<ServiceEdgeData, 'service'>;
+
+/** React Flow node type for namespace background rectangles */
+export type RFNamespaceNode = Node<NamespaceNodeData, 'namespace'>;
+
+/** Union of all RF node types used by ReactFlow `nodes` prop */
+export type RFFlowNode = RFServiceNode | RFNamespaceNode;
+
+/** Shape of a saved React Flow file (native save/restore format) */
+export interface RFFlowExport {
+  nodes: RFServiceNode[];
+  edges: RFServiceEdge[];
+  viewport: { x: number; y: number; zoom: number };
 }

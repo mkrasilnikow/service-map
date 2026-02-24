@@ -11,7 +11,11 @@
  */
 
 import type { GraphNode, GraphEdge } from '../types';
-import { NODE_W, getNodeSize } from '../constants/nodeTypes';
+import { NODE_W, NODE_H } from '../constants/nodeTypes';
+
+function getNodeSize(node: GraphNode): { w: number; h: number } {
+  return { w: node.width ?? NODE_W, h: node.height ?? NODE_H };
+}
 
 /** Minimum horizontal gap between columns */
 const COL_GAP = 80;

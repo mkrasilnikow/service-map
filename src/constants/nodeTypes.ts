@@ -8,7 +8,7 @@
  *   No component changes are required — the UI reads from this config.
  */
 
-import type { NodeTypeConfig, NodeTypeKey, GraphNode } from '../types';
+import type { NodeTypeConfig, NodeTypeKey } from '../types';
 
 /**
  * Registry of all available node types with their visual configuration.
@@ -88,7 +88,3 @@ export const NODE_W = 172;
 /** Height of a node card in pixels */
 export const NODE_H = 58;
 
-/** Get per-node dimensions, falling back to defaults */
-export function getNodeSize(node: GraphNode): { w: number; h: number } {
-  return { w: node.width ?? NODE_W, h: node.height ?? NODE_H };
-}

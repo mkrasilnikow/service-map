@@ -1,23 +1,12 @@
 /**
- * @file Toolbar component — top bar with mode switches and action buttons.
+ * @file Toolbar component — top bar with action buttons.
  *
- * Displays:
- *   - Application title
- *   - SELECT / CONNECT mode toggles
- *   - ADD NODE button
- *   - DELETE button (when an element is selected)
- *   - Node/edge count stats
- *   - EXPORT / IMPORT buttons
- *   - Theme toggle
+ * Connection mode is handled natively by React Flow (drag from node handle).
+ * The toolbar provides: add node, delete selected, import, export, theme toggle.
  */
-
-import type { InteractionMode } from '../../types';
 
 const LABELS = {
   TITLE: '◈ SERVICE MAP',
-  SELECT: '↖ SELECT',
-  CONNECT: '⟿ CONNECT',
-  CONNECT_HINT: '→ click target',
   ADD_NODE: '+ ADD NODE',
   DELETE_NODE: '✕ DELETE NODE',
   DELETE_EDGE: '✕ DELETE EDGE',
@@ -26,14 +15,11 @@ const LABELS = {
 } as const;
 
 interface ToolbarProps {
-  mode: InteractionMode;
-  connectFrom: string | null;
   hasSelection: boolean;
   selectedKind: 'node' | 'edge' | null;
   nodeCount: number;
   edgeCount: number;
   isDark: boolean;
-  onModeChange: (mode: InteractionMode) => void;
   onAddNode: () => void;
   onDelete: () => void;
   onExport: () => void;
@@ -42,14 +28,11 @@ interface ToolbarProps {
 }
 
 export function Toolbar({
-  mode,
-  connectFrom,
   hasSelection,
   selectedKind,
   nodeCount,
   edgeCount,
   isDark,
-  onModeChange,
   onAddNode,
   onDelete,
   onExport,
@@ -81,20 +64,6 @@ export function Toolbar({
       </span>
 
       <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
-
-      <button
-        className={`toolbar-btn ${mode === 'select' ? 'active' : ''}`}
-        onClick={() => onModeChange('select')}
-      >
-        {LABELS.SELECT}
-      </button>
-
-      <button
-        className={`toolbar-btn ${mode === 'connect' ? 'active' : ''}`}
-        onClick={() => onModeChange('connect')}
-      >
-        {LABELS.CONNECT} {connectFrom ? LABELS.CONNECT_HINT : ''}
-      </button>
 
       <button className="toolbar-btn success" onClick={onAddNode}>
         {LABELS.ADD_NODE}

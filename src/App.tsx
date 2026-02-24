@@ -1,54 +1,70 @@
 /**
  * @file Root application component for the Service Map Editor.
  *
- * Orchestrates all child components and hooks:
- *   - useGraph — manages nodes, edges, selection
- *   - useDrag — handles node and edge control point dragging
- *   - useCanvas — pan, zoom, and coordinate transform (g-transform approach)
- *   - useKeyboard — global keyboard shortcuts
+ * Uses React Flow as the canvas engine:
+ *   - Custom ServiceNode and NamespaceNode for visuals
+ *   - Custom ServiceEdge for styled connections with type badges
+ *   - RF native Save/Restore for JSON export/import
+ *   - html-to-image for PNG download
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
-import type { InteractionMode, NodeTypeKey, GraphNode, GraphEdge } from './types';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  Background,
+  BackgroundVariant,
+  Controls,
+  useReactFlow,
+  type NodeTypes,
+  type EdgeTypes,
+} from '@xyflow/react';
+
+import { ThemeContext } from './context/ThemeContext';
+import { ServiceNode } from './components/nodes/ServiceNode';
+import { NamespaceNode } from './components/nodes/NamespaceNode';
+import { ServiceEdge } from './components/edges/ServiceEdge';
 import { useGraph } from './hooks/useGraph';
-import { useDrag } from './hooks/useDrag';
-import { useCanvas } from './hooks/useCanvas';
-import { useKeyboard } from './hooks/useKeyboard';
-import { toMermaid, toSchemaExport } from './utils/export';
-import { Canvas } from './components/Canvas';
 import { Toolbar } from './components/Toolbar';
 import { Sidebar } from './components/Sidebar';
-import { CanvasControls } from './components/CanvasControls';
 import { AddNodeModal } from './components/modals/AddNodeModal';
 import { ExportModal } from './components/modals/ExportModal';
 import { ImportModal } from './components/modals/ImportModal';
+import type { ImportResult } from './components/modals/ImportModal/ImportModal';
+import { toMermaid } from './utils/export';
+import type { NodeTypeKey, GraphNode, GraphEdge } from './types';
 
 const THEME_KEY = 'service-map-theme';
 
-export default function App() {
-  /* --- Graph state --- */
+const NODE_TYPES: NodeTypes = {
+  service: ServiceNode,
+  namespace: NamespaceNode,
+};
+
+const EDGE_TYPES: EdgeTypes = {
+  service: ServiceEdge,
+};
+
+// ─── Inner app (needs ReactFlowProvider in scope) ─────────────────────────────
+
+function AppInner() {
+  const { toObject, fitView: rfFitView, setViewport } = useReactFlow();
+
   const {
     nodes,
+    serviceNodes,
     edges,
-    selected,
-    setNodes,
+    setServiceNodes,
     setEdges,
-    setSelected,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
     addNode,
     updateNode,
     updateEdge,
-    addEdge,
-    deleteSelected,
+    importGraphData,
+    restoreFlow,
   } = useGraph();
-
-  /* --- Interaction mode --- */
-  const [mode, setMode] = useState<InteractionMode>('select');
-  const [connectFrom, setConnectFrom] = useState<string | null>(null);
-
-  /* --- Modals --- */
-  const [showAddNode, setShowAddNode] = useState(false);
-  const [showExport, setShowExport] = useState(false);
-  const [showImport, setShowImport] = useState(false);
 
   /* --- Theme --- */
   const [isDark, setIsDark] = useState(() => {
@@ -61,116 +77,87 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
-  /* --- Canvas (pan & zoom via g-transform) --- */
-  const svgRef = useRef<SVGSVGElement | null>(null);
-  const {
-    canvas,
-    isPanLocked,
-    screenToCanvas,
-    onPanStart,
-    isPanning,
-    zoomIn,
-    zoomOut,
-    fitView,
-    toggleLock,
-  } = useCanvas(svgRef);
+  /* --- Modals --- */
+  const [showAddNode, setShowAddNode] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
-  /* --- Drag (nodes + edge control points) --- */
-  const {
-    onNodeMouseDown: dragMouseDown,
-    onEdgeControlMouseDown,
-    onResizeMouseDown,
-    onSvgMouseMove: dragMouseMove,
-    onSvgMouseUp: dragMouseUp,
-    isDragging,
-  } = useDrag(nodes, edges, updateNode, updateEdge, screenToCanvas);
+  /* --- Derived selection from RF state --- */
+  const selectedServiceNode = serviceNodes.find(n => n.selected) ?? null;
+  const selectedEdge = edges.find(e => e.selected) ?? null;
+  const hasSelection = !!selectedServiceNode || !!selectedEdge;
+  const selectedKind: 'node' | 'edge' | null = selectedServiceNode
+    ? 'node'
+    : selectedEdge
+      ? 'edge'
+      : null;
 
-  /* --- Combined mouse move for drag --- */
-  const onSvgMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      dragMouseMove(e);
-    },
-    [dragMouseMove],
-  );
-
-  const onSvgMouseUp = useCallback(() => {
-    dragMouseUp();
-  }, [dragMouseUp]);
-
-  /* --- Keyboard --- */
-  const resetMode = useCallback(() => {
-    setMode('select');
-    setConnectFrom(null);
-    setSelected(null);
-  }, [setSelected]);
-
-  useKeyboard(deleteSelected, resetMode, !!selected);
-
-  /* --- Node mouse down: start drag (only in select mode) --- */
-  const onNodeMouseDown = useCallback(
-    (e: React.MouseEvent, nodeId: string) => {
-      if (mode === 'connect') return;
-      dragMouseDown(e, nodeId);
-      setSelected({ kind: 'node', id: nodeId });
-    },
-    [mode, dragMouseDown, setSelected],
-  );
-
-  /* --- Node click: select or connect --- */
-  const onNodeClick = useCallback(
-    (e: React.MouseEvent, nodeId: string) => {
-      e.stopPropagation();
-      if (mode !== 'connect') {
-        setSelected({ kind: 'node', id: nodeId });
-        return;
-      }
-      if (!connectFrom) {
-        setConnectFrom(nodeId);
-      } else {
-        if (connectFrom !== nodeId) {
-          addEdge(connectFrom, nodeId);
+  /* --- Adapt RF nodes/edges to GraphNode/GraphEdge for Sidebar (no Sidebar changes needed) --- */
+  const selectedGraphNode = useMemo((): GraphNode | null =>
+    selectedServiceNode
+      ? {
+          id: selectedServiceNode.id,
+          name: selectedServiceNode.data.name,
+          type: selectedServiceNode.data.nodeType as NodeTypeKey,
+          namespace: selectedServiceNode.data.namespace,
+          x: selectedServiceNode.position.x,
+          y: selectedServiceNode.position.y,
+          width: selectedServiceNode.width,
+          height: selectedServiceNode.height,
         }
-        setConnectFrom(null);
-      }
-    },
-    [mode, connectFrom, setSelected, addEdge],
+      : null,
+    [selectedServiceNode],
   );
 
-  /* --- Edge click: select --- */
-  const onEdgeClick = useCallback(
-    (e: React.MouseEvent, edgeId: string) => {
-      e.stopPropagation();
-      setSelected({ kind: 'edge', id: edgeId });
-    },
-    [setSelected],
+  const selectedGraphEdge = useMemo((): GraphEdge | null =>
+    selectedEdge
+      ? {
+          id: selectedEdge.id,
+          source: selectedEdge.source,
+          target: selectedEdge.target,
+          type: selectedEdge.data?.integrationType,
+          label: selectedEdge.data?.label,
+        }
+      : null,
+    [selectedEdge],
   );
 
-  /* --- Canvas click: deselect (only if not panning/dragging) --- */
-  const onSvgClick = useCallback(() => {
-    if (!isPanning() && !isDragging()) {
-      setSelected(null);
+  const graphNodes = useMemo((): GraphNode[] =>
+    serviceNodes.map(n => ({
+      id: n.id,
+      name: n.data.name,
+      type: n.data.nodeType as NodeTypeKey,
+      namespace: n.data.namespace,
+      x: n.position.x,
+      y: n.position.y,
+      width: n.width,
+      height: n.height,
+    })),
+    [serviceNodes],
+  );
+
+  const graphEdges = useMemo((): GraphEdge[] =>
+    edges.map(e => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      type: e.data?.integrationType,
+      label: e.data?.label,
+    })),
+    [edges],
+  );
+
+  /* --- Delete selected element --- */
+  const deleteSelected = useCallback(() => {
+    if (selectedServiceNode) {
+      const id = selectedServiceNode.id;
+      setServiceNodes(nds => nds.filter(n => n.id !== id));
+      setEdges(eds => eds.filter(e => e.source !== id && e.target !== id));
+    } else if (selectedEdge) {
+      const id = selectedEdge.id;
+      setEdges(eds => eds.filter(e => e.id !== id));
     }
-  }, [setSelected, isPanning, isDragging]);
-
-  /* --- Canvas mouse down: start pan on left click on empty area --- */
-  const onSvgMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      /* Only left button, only in select mode, and only on empty canvas */
-      if (e.button !== 0 || mode === 'connect') return;
-      onPanStart(e.clientX, e.clientY);
-    },
-    [mode, onPanStart],
-  );
-
-  /* --- Mode change --- */
-  const handleModeChange = useCallback(
-    (newMode: InteractionMode) => {
-      setMode(newMode);
-      setConnectFrom(null);
-      if (newMode === 'connect') setSelected(null);
-    },
-    [setSelected],
-  );
+  }, [selectedServiceNode, selectedEdge, setServiceNodes, setEdges]);
 
   /* --- Add node from modal --- */
   const handleAddNode = useCallback(
@@ -183,104 +170,135 @@ export default function App() {
 
   /* --- Import handler --- */
   const handleImport = useCallback(
-    (importedNodes: GraphNode[], importedEdges: GraphEdge[]) => {
-      setNodes(importedNodes);
-      setEdges(importedEdges);
-      setSelected(null);
+    (result: ImportResult) => {
+      if (result.format === 'flow') {
+        restoreFlow(result.nodes, result.edges);
+        const vp = result.viewport;
+        setTimeout(() => setViewport(vp), 50);
+      } else {
+        importGraphData(result.nodes, result.edges);
+        setTimeout(() => rfFitView({ padding: 0.1, duration: 300 }), 50);
+      }
       setShowImport(false);
     },
-    [setNodes, setEdges, setSelected],
+    [importGraphData, restoreFlow, setViewport, rfFitView],
   );
 
-  /* --- Resolved selected elements --- */
-  const selectedNode =
-    selected?.kind === 'node' ? (nodes.find(n => n.id === selected.id) ?? null) : null;
-  const selectedEdge =
-    selected?.kind === 'edge' ? (edges.find(e => e.id === selected.id) ?? null) : null;
+  const handleOpenExport = useCallback(() => {
+    setShowExport(true);
+  }, []);
+
+  // Get the real viewport when opening export modal
+  const getFlowJsonWithViewport = useCallback(() => {
+    const flow = toObject();
+    const filtered = {
+      ...flow,
+      nodes: flow.nodes.filter((n: { type?: string }) => n.type !== 'namespace'),
+    };
+    return JSON.stringify(filtered, null, 2);
+  }, [toObject]);
+
+  const [liveFlowJson, setLiveFlowJson] = useState('');
+
+  useEffect(() => {
+    if (showExport) {
+      setLiveFlowJson(getFlowJsonWithViewport());
+    }
+  }, [showExport, getFlowJsonWithViewport]);
+
+  const mermaid = useMemo(() => toMermaid(graphNodes, graphEdges), [graphNodes, graphEdges]);
 
   return (
-    <div className="app-root">
-      <Toolbar
-        mode={mode}
-        connectFrom={connectFrom}
-        hasSelection={!!selected}
-        selectedKind={selected?.kind ?? null}
-        nodeCount={nodes.length}
-        edgeCount={edges.length}
-        isDark={isDark}
-        onModeChange={handleModeChange}
-        onAddNode={() => setShowAddNode(true)}
-        onDelete={deleteSelected}
-        onExport={() => setShowExport(true)}
-        onImport={() => setShowImport(true)}
-        onToggleTheme={() => setIsDark(prev => !prev)}
-      />
-
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
-        <Canvas
-          nodes={nodes}
-          edges={edges}
-          selected={selected}
-          mode={mode}
-          connectFrom={connectFrom}
+    <ThemeContext.Provider value={{ isDark }}>
+      <div className="app-root">
+        <Toolbar
+          hasSelection={hasSelection}
+          selectedKind={selectedKind}
+          nodeCount={serviceNodes.length}
+          edgeCount={edges.length}
           isDark={isDark}
-          svgRef={svgRef}
-          panX={canvas.panX}
-          panY={canvas.panY}
-          zoom={canvas.zoom}
-          isPanLocked={isPanLocked}
-          onNodeMouseDown={onNodeMouseDown}
-          onNodeClick={onNodeClick}
-          onEdgeClick={onEdgeClick}
-          onEdgeControlDragStart={onEdgeControlMouseDown}
-          onResizeStart={onResizeMouseDown}
-          onSvgMouseMove={onSvgMouseMove}
-          onSvgMouseUp={onSvgMouseUp}
-          onSvgMouseDown={onSvgMouseDown}
-          onSvgClick={onSvgClick}
-        />
-
-        <CanvasControls
-          zoom={canvas.zoom}
-          isPanLocked={isPanLocked}
-          onZoomIn={zoomIn}
-          onZoomOut={zoomOut}
-          onFitView={() => fitView(nodes)}
-          onToggleLock={toggleLock}
-        />
-
-        <Sidebar
-          selectedNode={selectedNode}
-          selectedEdge={selectedEdge}
-          nodes={nodes}
-          edges={edges}
-          isDark={isDark}
-          onUpdateNode={updateNode}
-          onUpdateEdge={updateEdge}
+          onAddNode={() => setShowAddNode(true)}
           onDelete={deleteSelected}
+          onExport={handleOpenExport}
+          onImport={() => setShowImport(true)}
+          onToggleTheme={() => setIsDark(prev => !prev)}
         />
+
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={NODE_TYPES}
+            edgeTypes={EDGE_TYPES}
+            deleteKeyCode="Delete"
+            multiSelectionKeyCode="Shift"
+            fitView
+            fitViewOptions={{ padding: 0.15 }}
+            minZoom={0.1}
+            maxZoom={3}
+            style={{ background: 'var(--bg)' }}
+          >
+            <Background
+              color={isDark ? '#1e3a5f' : '#cbd5e1'}
+              variant={BackgroundVariant.Dots}
+              gap={28}
+              size={1.5}
+            />
+            <Controls
+              style={{
+                background: 'var(--btn-bg)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+              }}
+            />
+          </ReactFlow>
+
+          <Sidebar
+            selectedNode={selectedGraphNode}
+            selectedEdge={selectedGraphEdge}
+            nodes={graphNodes}
+            edges={graphEdges}
+            isDark={isDark}
+            onUpdateNode={updateNode}
+            onUpdateEdge={updateEdge}
+            onDelete={deleteSelected}
+          />
+        </div>
+
+        {showAddNode && (
+          <AddNodeModal
+            onAdd={handleAddNode}
+            onClose={() => setShowAddNode(false)}
+            isDark={isDark}
+          />
+        )}
+
+        {showExport && (
+          <ExportModal
+            mermaid={mermaid}
+            flowJson={liveFlowJson}
+            isDark={isDark}
+            onClose={() => setShowExport(false)}
+          />
+        )}
+
+        {showImport && (
+          <ImportModal onImport={handleImport} onClose={() => setShowImport(false)} />
+        )}
       </div>
+    </ThemeContext.Provider>
+  );
+}
 
-      {showAddNode && (
-        <AddNodeModal
-          onAdd={handleAddNode}
-          onClose={() => setShowAddNode(false)}
-          isDark={isDark}
-        />
-      )}
+// ─── Root export wraps with ReactFlowProvider ─────────────────────────────────
 
-      {showExport && (
-        <ExportModal
-          mermaid={toMermaid(nodes, edges)}
-          schemaExport={toSchemaExport(nodes, edges)}
-          svgRef={svgRef}
-          onClose={() => setShowExport(false)}
-        />
-      )}
-
-      {showImport && (
-        <ImportModal onImport={handleImport} onClose={() => setShowImport(false)} />
-      )}
-    </div>
+export default function App() {
+  return (
+    <ReactFlowProvider>
+      <AppInner />
+    </ReactFlowProvider>
   );
 }

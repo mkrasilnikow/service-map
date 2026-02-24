@@ -1,66 +1,49 @@
 /**
  * @file ExportModal — modal dialog showing export options.
  *
- * Displays:
- *   - Mermaid diagram output (read-only textarea, copy & download buttons)
- *   - Schema-export JSON output (read-only textarea, copy & download buttons)
- *   - PDF export button (renders SVG canvas to A3 landscape PDF)
- *   - Close button
- *
- * @param props.mermaid - Pre-generated Mermaid diagram string.
- * @param props.schemaExport - Pre-generated schema-export JSON string.
- * @param props.svgRef - Ref to the SVG element for PDF export.
- * @param props.onClose - Callback to close the modal.
+ * Options:
+ *   - Mermaid diagram output (copy & download as .md)
+ *   - RF native flow JSON (copy & download as .json) — Save/Restore format
+ *   - Download PNG image of the current canvas
  */
 
 import { useState } from 'react';
-import { toPdf, downloadMermaid } from '../../../utils/export';
+import { downloadMermaid, downloadJson, downloadImage } from '../../../utils/export';
 
-/** UI string constants */
 const LABELS = {
   TITLE: '⬡ EXPORT',
   MERMAID: 'MERMAID DIAGRAM',
-  SCHEMA_EXPORT: 'SCHEMA-EXPORT (JSON)',
+  FLOW_JSON: 'FLOW JSON (SAVE / RESTORE)',
   COPY_MERMAID: 'COPY MERMAID',
   COPY_JSON: 'COPY JSON',
   DOWNLOAD_MD: 'DOWNLOAD .MD',
   DOWNLOAD_JSON: 'DOWNLOAD JSON',
-  EXPORT_PDF: 'EXPORT PDF',
-  EXPORTING_PDF: 'EXPORTING...',
+  DOWNLOAD_IMAGE: '⬇ DOWNLOAD IMAGE',
+  DOWNLOADING: 'SAVING...',
   CLOSE: 'CLOSE',
 } as const;
 
 interface ExportModalProps {
   mermaid: string;
-  schemaExport: string;
-  svgRef: React.RefObject<SVGSVGElement | null>;
+  flowJson: string;
+  isDark: boolean;
   onClose: () => void;
 }
 
-export function ExportModal({ mermaid, schemaExport, svgRef, onClose }: ExportModalProps) {
-  const [pdfLoading, setPdfLoading] = useState(false);
+export function ExportModal({ mermaid, flowJson, isDark, onClose }: ExportModalProps) {
+  const [imageLoading, setImageLoading] = useState(false);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard?.writeText(text);
   };
 
-  const downloadJson = () => {
-    const blob = new Blob([schemaExport], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'service-map-export.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handlePdfExport = async () => {
-    if (!svgRef.current || pdfLoading) return;
-    setPdfLoading(true);
+  const handleDownloadImage = async () => {
+    if (imageLoading) return;
+    setImageLoading(true);
     try {
-      await toPdf(svgRef.current, 'Service Map');
+      await downloadImage(isDark);
     } finally {
-      setPdfLoading(false);
+      setImageLoading(false);
     }
   };
 
@@ -76,11 +59,11 @@ export function ExportModal({ mermaid, schemaExport, svgRef, onClose }: ExportMo
           value={mermaid}
         />
 
-        <label>{LABELS.SCHEMA_EXPORT}</label>
+        <label>{LABELS.FLOW_JSON}</label>
         <textarea
           style={{ height: 100, resize: 'vertical', fontFamily: 'inherit', fontSize: 11 }}
           readOnly
-          value={schemaExport}
+          value={flowJson}
         />
 
         <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
@@ -90,18 +73,21 @@ export function ExportModal({ mermaid, schemaExport, svgRef, onClose }: ExportMo
           <button className="toolbar-btn" onClick={() => downloadMermaid(mermaid)}>
             {LABELS.DOWNLOAD_MD}
           </button>
-          <button className="toolbar-btn" onClick={() => copyToClipboard(schemaExport)}>
+          <button className="toolbar-btn" onClick={() => copyToClipboard(flowJson)}>
             {LABELS.COPY_JSON}
           </button>
-          <button className="toolbar-btn success" onClick={downloadJson}>
+          <button
+            className="toolbar-btn success"
+            onClick={() => downloadJson(flowJson, 'service-map.json')}
+          >
             {LABELS.DOWNLOAD_JSON}
           </button>
           <button
             className="toolbar-btn success"
-            onClick={handlePdfExport}
-            disabled={pdfLoading}
+            onClick={handleDownloadImage}
+            disabled={imageLoading}
           >
-            {pdfLoading ? LABELS.EXPORTING_PDF : LABELS.EXPORT_PDF}
+            {imageLoading ? LABELS.DOWNLOADING : LABELS.DOWNLOAD_IMAGE}
           </button>
           <button className="toolbar-btn" onClick={onClose}>
             {LABELS.CLOSE}
