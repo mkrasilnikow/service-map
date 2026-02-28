@@ -3,10 +3,7 @@
  *
  * Supports two import formats:
  *   - service-schema — a high-level service definition with integrations.
- *   - schema-export — a full graph snapshot including node positions.
- *
- * Both functions validate the input and return a result with either
- * parsed data or an error message.
+ *   - flow (RF native) — React Flow save/restore format.
  */
 
 import type { GraphNode, GraphEdge, NodeTypeKey, IntegrationTypeKey } from '../types';
@@ -110,64 +107,3 @@ export function importServiceSchema(json: string): ImportResult {
   return { nodes: layoutNodes, edges };
 }
 
-/**
- * Import a schema-export JSON string.
- * Restores the full canvas state including node positions.
- *
- * @param json - Raw JSON string in schema-export format.
- * @returns Parsed nodes and edges, or throws an Error with a message.
- */
-export function importSchemaExport(json: string): ImportResult {
-  let data: unknown;
-  try {
-    data = JSON.parse(json);
-  } catch {
-    throw new Error('Invalid JSON: could not parse the input.');
-  }
-
-  if (typeof data !== 'object' || data === null) {
-    throw new Error('Invalid schema-export: expected a JSON object.');
-  }
-
-  const obj = data as Record<string, unknown>;
-
-  if (!Array.isArray(obj.nodes)) {
-    throw new Error('Invalid schema-export: missing "nodes" array.');
-  }
-  if (!Array.isArray(obj.edges)) {
-    throw new Error('Invalid schema-export: missing "edges" array.');
-  }
-
-  const nodes: GraphNode[] = (obj.nodes as Record<string, unknown>[]).map((n, i) => {
-    if (!n.id || typeof n.id !== 'string') throw new Error(`Node at index ${i}: missing "id".`);
-    if (!n.name || typeof n.name !== 'string') throw new Error(`Node "${n.id}": missing "name".`);
-    if (typeof n.x !== 'number' || typeof n.y !== 'number') {
-      throw new Error(`Node "${n.id}": missing x/y coordinates.`);
-    }
-
-    return {
-      id: n.id as string,
-      name: n.name as string,
-      type: (VALID_NODE_TYPES.has(n.type as string) ? n.type : 'external') as NodeTypeKey,
-      namespace: typeof n.namespace === 'string' ? n.namespace : undefined,
-      x: n.x as number,
-      y: n.y as number,
-    };
-  });
-
-  const edges: GraphEdge[] = (obj.edges as Record<string, unknown>[]).map((e, i) => {
-    if (!e.id || typeof e.id !== 'string') throw new Error(`Edge at index ${i}: missing "id".`);
-    if (!e.source || typeof e.source !== 'string') throw new Error(`Edge "${e.id}": missing "source".`);
-    if (!e.target || typeof e.target !== 'string') throw new Error(`Edge "${e.id}": missing "target".`);
-
-    return {
-      id: e.id as string,
-      source: e.source as string,
-      target: e.target as string,
-      type: VALID_EDGE_TYPES.has(e.type as string) ? (e.type as IntegrationTypeKey) : undefined,
-      label: typeof e.label === 'string' ? e.label : undefined,
-    };
-  });
-
-  return { nodes, edges };
-}

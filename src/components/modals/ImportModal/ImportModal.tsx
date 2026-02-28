@@ -1,21 +1,19 @@
 /**
  * @file ImportModal — modal dialog for importing graph data from JSON.
  *
- * Supports three import formats:
+ * Supports two import formats:
  *   - service-schema  — high-level service definitions with auto-layout.
- *   - schema-export   — legacy full graph snapshot with positions.
  *   - flow (RF)       — React Flow native save/restore format.
  */
 
 import { useRef, useState } from 'react';
 import type { GraphNode, GraphEdge, RFServiceNode, RFServiceEdge, RFFlowExport } from '../../../types';
-import { importServiceSchema, importSchemaExport } from '../../../utils/import';
+import { importServiceSchema } from '../../../utils/import';
 
 const LABELS = {
   TITLE: '⬡ IMPORT',
   FORMAT: 'FORMAT',
   SERVICE_SCHEMA: 'service-schema',
-  SCHEMA_EXPORT: 'schema-export (legacy)',
   FLOW: 'flow (RF native)',
   JSON_INPUT: 'PASTE JSON OR LOAD FILE',
   PLACEHOLDER: 'Paste your JSON here...',
@@ -24,10 +22,10 @@ const LABELS = {
   IMPORT: 'IMPORT',
 } as const;
 
-type ImportFormat = 'service-schema' | 'schema-export' | 'flow';
+type ImportFormat = 'service-schema' | 'flow';
 
 export type ImportResult =
-  | { format: 'service-schema' | 'schema-export'; nodes: GraphNode[]; edges: GraphEdge[] }
+  | { format: 'service-schema'; nodes: GraphNode[]; edges: GraphEdge[] }
   | { format: 'flow'; nodes: RFServiceNode[]; edges: RFServiceEdge[]; viewport: RFFlowExport['viewport'] };
 
 interface ImportModalProps {
@@ -72,11 +70,8 @@ export function ImportModal({ onImport, onClose }: ImportModalProps) {
         const flow = data as { nodes: RFServiceNode[]; edges: RFServiceEdge[]; viewport: RFFlowExport['viewport'] };
         onImport({ format: 'flow', nodes: flow.nodes ?? [], edges: flow.edges ?? [], viewport: flow.viewport ?? { x: 0, y: 0, zoom: 1 } });
       } else {
-        const result =
-          format === 'service-schema'
-            ? importServiceSchema(json)
-            : importSchemaExport(json);
-        onImport({ format, nodes: result.nodes, edges: result.edges });
+        const result = importServiceSchema(json);
+        onImport({ format: 'service-schema', nodes: result.nodes, edges: result.edges });
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
@@ -96,7 +91,6 @@ export function ImportModal({ onImport, onClose }: ImportModalProps) {
           style={{ marginBottom: 12 }}
         >
           <option value="service-schema">{LABELS.SERVICE_SCHEMA}</option>
-          <option value="schema-export">{LABELS.SCHEMA_EXPORT}</option>
           <option value="flow">{LABELS.FLOW}</option>
         </select>
 

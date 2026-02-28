@@ -281,7 +281,7 @@ export function useGraph() {
 
   /**
    * Batch-import from canonical GraphNode[]/GraphEdge[] format.
-   * Used after importing service-schema or schema-export JSON.
+   * Used after importing service-schema JSON.
    */
   const importGraphData = useCallback((graphNodes: GraphNode[], graphEdges: GraphEdge[]) => {
     setServiceNodes(graphNodesToRF(graphNodes));
