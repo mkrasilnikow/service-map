@@ -9,7 +9,7 @@
 
 import { toPng } from 'html-to-image';
 import type { GraphNode, GraphEdge } from '../types';
-import { NODE_TYPES } from '../constants/nodeTypes';
+import { NODE_TYPES, NODE_W, NODE_H } from '../constants/nodeTypes';
 
 /**
  * Generate a Mermaid diagram string.
@@ -79,6 +79,283 @@ export function downloadJson(content: string, filename = 'service-map.json'): vo
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Excalidraw export ────────────────────────────────────────────────────────
+
+function exId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+function exSeed() {
+  return Math.floor(Math.random() * 1_000_000);
+}
+
+/**
+ * Returns the point on the border of a rectangle (rx, ry, rw, rh) where a
+ * ray from the rectangle's center towards (targetX, targetY) exits, plus an
+ * optional outward gap in pixels.
+ */
+function rectEdgePoint(
+  rx: number, ry: number, rw: number, rh: number,
+  targetX: number, targetY: number,
+  gap = 0,
+): { x: number; y: number } {
+  const cx = rx + rw / 2;
+  const cy = ry + rh / 2;
+  const dx = targetX - cx;
+  const dy = targetY - cy;
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+  // Scale factors to hit each axis-aligned border
+  const scaleX = dx !== 0 ? (rw / 2) / Math.abs(dx) : Infinity;
+  const scaleY = dy !== 0 ? (rh / 2) / Math.abs(dy) : Infinity;
+  const scale = Math.min(scaleX, scaleY);
+
+  const bx = cx + dx * scale;
+  const by = cy + dy * scale;
+
+  if (gap === 0) return { x: bx, y: by };
+
+  // Move outward by gap along the direction vector
+  const len = Math.sqrt(dx * dx + dy * dy);
+  return { x: bx + (dx / len) * gap, y: by + (dy / len) * gap };
+}
+
+/**
+ * Convert graph nodes and edges to an Excalidraw-compatible JSON string.
+ * The result can be saved as a `.excalidraw` file and opened in Excalidraw.
+ */
+export function toExcalidraw(nodes: GraphNode[], edges: GraphEdge[]): string {
+  const now = Date.now();
+  const elements: unknown[] = [];
+  // Map our node IDs to Excalidraw rectangle element IDs
+  const nodeToRectId = new Map<string, string>();
+  // Track bound elements per rect (for proper format)
+  const rectBound = new Map<string, { type: string; id: string }[]>();
+
+  // ── Rectangles + text labels for nodes ──────────────────────────────────────
+  for (const node of nodes) {
+    const rectId = exId();
+    const textId = exId();
+    nodeToRectId.set(node.id, rectId);
+
+    const config = NODE_TYPES[node.type];
+    const w = node.width ?? NODE_W;
+    const h = node.height ?? NODE_H;
+    const label = `${config?.icon ?? '◈'} ${node.name}\n[${config?.label ?? node.type}]`;
+
+    rectBound.set(rectId, [{ type: 'text', id: textId }]);
+
+    elements.push({
+      id: rectId,
+      type: 'rectangle',
+      x: node.x,
+      y: node.y,
+      width: w,
+      height: h,
+      angle: 0,
+      strokeColor: config?.borderLight ?? '#64748b',
+      backgroundColor: config?.bgLight ?? '#f1f5f9',
+      fillStyle: 'solid',
+      strokeWidth: 1,
+      strokeStyle: config?.dashed ? 'dashed' : 'solid',
+      roughness: 0,
+      opacity: 100,
+      groupIds: [],
+      frameId: null,
+      roundness: { type: 3 },
+      seed: exSeed(),
+      version: 1,
+      versionNonce: exSeed(),
+      isDeleted: false,
+      boundElements: [{ type: 'text', id: textId }],
+      updated: now,
+      link: null,
+      locked: false,
+    });
+
+    elements.push({
+      id: textId,
+      type: 'text',
+      x: node.x,
+      y: node.y,
+      width: w,
+      height: h,
+      angle: 0,
+      strokeColor: config?.borderLight ?? '#1e293b',
+      backgroundColor: 'transparent',
+      fillStyle: 'solid',
+      strokeWidth: 1,
+      strokeStyle: 'solid',
+      roughness: 0,
+      opacity: 100,
+      groupIds: [],
+      frameId: null,
+      roundness: null,
+      seed: exSeed(),
+      version: 1,
+      versionNonce: exSeed(),
+      isDeleted: false,
+      boundElements: null,
+      updated: now,
+      link: null,
+      locked: false,
+      text: label,
+      fontSize: 12,
+      fontFamily: 3, // monospace
+      textAlign: 'center',
+      verticalAlign: 'middle',
+      containerId: rectId,
+      originalText: label,
+      lineHeight: 1.25,
+      autoResize: true,
+    });
+  }
+
+  // ── Arrows for edges ─────────────────────────────────────────────────────────
+  for (const edge of edges) {
+    const sourceRectId = nodeToRectId.get(edge.source);
+    const targetRectId = nodeToRectId.get(edge.target);
+    if (!sourceRectId || !targetRectId) continue;
+
+    const sourceNode = nodes.find(n => n.id === edge.source)!;
+    const targetNode = nodes.find(n => n.id === edge.target)!;
+    const sw = sourceNode.width ?? NODE_W;
+    const sh = sourceNode.height ?? NODE_H;
+    const tw = targetNode.width ?? NODE_W;
+    const th = targetNode.height ?? NODE_H;
+
+    const sourceCX = sourceNode.x + sw / 2;
+    const sourceCY = sourceNode.y + sh / 2;
+    const targetCX = targetNode.x + tw / 2;
+    const targetCY = targetNode.y + th / 2;
+
+    // Arrow starts at the border of the source rect (pointing toward target),
+    // ends at the border of the target rect (pointing toward source).
+    const GAP = 6;
+    const start = rectEdgePoint(sourceNode.x, sourceNode.y, sw, sh, targetCX, targetCY, GAP);
+    const end   = rectEdgePoint(targetNode.x, targetNode.y, tw, th, sourceCX, sourceCY, GAP);
+
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+
+    const arrowId = exId();
+    const edgeLabel = edge.type ?? edge.label;
+    const labelId = edgeLabel ? exId() : null;
+
+    // Register arrow as bound element on source and target rects
+    rectBound.get(sourceRectId)?.push({ type: 'arrow', id: arrowId });
+    rectBound.get(targetRectId)?.push({ type: 'arrow', id: arrowId });
+
+    elements.push({
+      id: arrowId,
+      type: 'arrow',
+      x: start.x,
+      y: start.y,
+      width: Math.abs(dx),
+      height: Math.abs(dy),
+      angle: 0,
+      strokeColor: '#64748b',
+      backgroundColor: 'transparent',
+      fillStyle: 'solid',
+      strokeWidth: 1,
+      strokeStyle: 'solid',
+      roughness: 0,
+      opacity: 100,
+      groupIds: [],
+      frameId: null,
+      roundness: { type: 2 },
+      seed: exSeed(),
+      version: 1,
+      versionNonce: exSeed(),
+      isDeleted: false,
+      boundElements: labelId ? [{ type: 'text', id: labelId }] : null,
+      updated: now,
+      link: null,
+      locked: false,
+      points: [[0, 0], [dx, dy]],
+      lastCommittedPoint: null,
+      startBinding: { elementId: sourceRectId, gap: 6, focus: 0 },
+      endBinding: { elementId: targetRectId, gap: 6, focus: 0 },
+      startArrowhead: null,
+      endArrowhead: 'arrow',
+      elbowed: false,
+    });
+
+    if (edgeLabel && labelId) {
+      elements.push({
+        id: labelId,
+        type: 'text',
+        x: start.x + dx / 2 - 30,
+        y: start.y + dy / 2 - 10,
+        width: 60,
+        height: 20,
+        angle: 0,
+        strokeColor: '#475569',
+        backgroundColor: 'transparent',
+        fillStyle: 'solid',
+        strokeWidth: 1,
+        strokeStyle: 'solid',
+        roughness: 0,
+        opacity: 100,
+        groupIds: [],
+        frameId: null,
+        roundness: null,
+        seed: exSeed(),
+        version: 1,
+        versionNonce: exSeed(),
+        isDeleted: false,
+        boundElements: null,
+        updated: now,
+        link: null,
+        locked: false,
+        text: edgeLabel,
+        fontSize: 11,
+        fontFamily: 3,
+        textAlign: 'center',
+        verticalAlign: 'middle',
+        containerId: arrowId,
+        originalText: edgeLabel,
+        lineHeight: 1.25,
+        autoResize: true,
+      });
+    }
+  }
+
+  // Back-fill boundElements on rectangles with arrow entries
+  for (const el of elements as Array<{ id: string; boundElements: unknown[] | null }>) {
+    const bound = rectBound.get(el.id);
+    if (bound) el.boundElements = bound;
+  }
+
+  return JSON.stringify(
+    {
+      type: 'excalidraw',
+      version: 2,
+      source: 'https://excalidraw.com',
+      elements,
+      appState: {
+        gridSize: null,
+        viewBackgroundColor: '#f8fafc',
+      },
+      files: {},
+    },
+    null,
+    2,
+  );
+}
+
+/**
+ * Download an Excalidraw file.
+ */
+export function downloadExcalidraw(content: string): void {
+  const blob = new Blob([content], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'service-map.excalidraw';
   a.click();
   URL.revokeObjectURL(url);
 }

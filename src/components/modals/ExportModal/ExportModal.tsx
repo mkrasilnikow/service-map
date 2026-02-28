@@ -8,16 +8,18 @@
  */
 
 import { useState } from 'react';
-import { downloadMermaid, downloadJson, downloadImage } from '../../../utils/export';
+import { downloadMermaid, downloadJson, downloadImage, downloadExcalidraw } from '../../../utils/export';
 
 const LABELS = {
   TITLE: '⬡ EXPORT',
   MERMAID: 'MERMAID DIAGRAM',
   FLOW_JSON: 'FLOW JSON (SAVE / RESTORE)',
+  EXCALIDRAW: 'EXCALIDRAW',
   COPY_MERMAID: 'COPY MERMAID',
   COPY_JSON: 'COPY JSON',
   DOWNLOAD_MD: 'DOWNLOAD .MD',
   DOWNLOAD_JSON: 'DOWNLOAD JSON',
+  DOWNLOAD_EXCALIDRAW: '⬇ DOWNLOAD .EXCALIDRAW',
   DOWNLOAD_IMAGE: '⬇ DOWNLOAD IMAGE',
   DOWNLOADING: 'SAVING...',
   CLOSE: 'CLOSE',
@@ -26,11 +28,12 @@ const LABELS = {
 interface ExportModalProps {
   mermaid: string;
   flowJson: string;
+  excalidrawJson: string;
   isDark: boolean;
   onClose: () => void;
 }
 
-export function ExportModal({ mermaid, flowJson, isDark, onClose }: ExportModalProps) {
+export function ExportModal({ mermaid, flowJson, excalidrawJson, isDark, onClose }: ExportModalProps) {
   const [imageLoading, setImageLoading] = useState(false);
 
   const copyToClipboard = (text: string) => {
@@ -66,6 +69,13 @@ export function ExportModal({ mermaid, flowJson, isDark, onClose }: ExportModalP
           value={flowJson}
         />
 
+        <label>{LABELS.EXCALIDRAW}</label>
+        <textarea
+          style={{ height: 60, resize: 'vertical', fontFamily: 'inherit', fontSize: 11 }}
+          readOnly
+          value={excalidrawJson.slice(0, 300) + '…'}
+        />
+
         <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
           <button className="toolbar-btn" onClick={() => copyToClipboard(mermaid)}>
             {LABELS.COPY_MERMAID}
@@ -81,6 +91,12 @@ export function ExportModal({ mermaid, flowJson, isDark, onClose }: ExportModalP
             onClick={() => downloadJson(flowJson, 'service-map.json')}
           >
             {LABELS.DOWNLOAD_JSON}
+          </button>
+          <button
+            className="toolbar-btn success"
+            onClick={() => downloadExcalidraw(excalidrawJson)}
+          >
+            {LABELS.DOWNLOAD_EXCALIDRAW}
           </button>
           <button
             className="toolbar-btn success"

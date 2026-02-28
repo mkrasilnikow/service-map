@@ -33,7 +33,7 @@ import { AddNodeModal } from './components/modals/AddNodeModal';
 import { ExportModal } from './components/modals/ExportModal';
 import { ImportModal } from './components/modals/ImportModal';
 import type { ImportResult } from './components/modals/ImportModal/ImportModal';
-import { toMermaid } from './utils/export';
+import { toMermaid, toExcalidraw } from './utils/export';
 import type { NodeTypeKey, GraphNode, GraphEdge } from './types';
 
 const THEME_KEY = 'service-map-theme';
@@ -239,6 +239,10 @@ function AppInner() {
   }, [showExport, getFlowJsonWithViewport]);
 
   const mermaid = useMemo(() => toMermaid(graphNodes, graphEdges), [graphNodes, graphEdges]);
+  const excalidrawJson = useMemo(
+    () => toExcalidraw(graphNodes, graphEdges),
+    [graphNodes, graphEdges],
+  );
 
   // Enrich parallel edges with parallelIndex/parallelTotal so ServiceEdge
   // can offset their curvature for visual separation.
@@ -335,6 +339,7 @@ function AppInner() {
           <ExportModal
             mermaid={mermaid}
             flowJson={liveFlowJson}
+            excalidrawJson={excalidrawJson}
             isDark={isDark}
             onClose={() => setShowExport(false)}
           />
