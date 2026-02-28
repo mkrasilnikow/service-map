@@ -15,6 +15,7 @@ import {
   Background,
   BackgroundVariant,
   Controls,
+  ConnectionMode,
   useReactFlow,
   type NodeTypes,
   type EdgeTypes,
@@ -233,6 +234,7 @@ function AppInner() {
             onConnect={onConnect}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
+            connectionMode={ConnectionMode.Loose}
             deleteKeyCode="Delete"
             multiSelectionKeyCode="Shift"
             fitView

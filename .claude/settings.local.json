@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npx --yes create-vite temp-init --template react-ts)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(git config:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(in cloned iframe\" error. Now uses XMLSerializer + Image + Canvas approach.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git fetch:*)",
+      "Bash(git rebase:*)",
+      "Bash(git stash:*)",
+      "Bash(git merge:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(cd:*)",
+      "Bash(pkill:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.excalidraw.com)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(cd /c/Projects/personal/service-map && npx tsc --noEmit 2>&1 && npx eslint src/ 2>&1)",
+      "Bash(cd /c/Projects/personal/service-map && npm run dev 2>&1)",
+      "Bash(tail:*)",
+      "Bash(cd /c/Projects/personal/service-map && npx vite --port 5173 2>&1)",
+      "Bash(taskkill:*)",
+      "Bash(cd /c/Projects/personal/service-map && npx vite 2>&1)",
+      "Bash(echo  \\(5180\\):*)",
+      "Bash(sleep 3:*)"
+    ]
+  }
+}

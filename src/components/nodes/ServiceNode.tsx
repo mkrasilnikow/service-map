@@ -21,10 +21,10 @@ export function ServiceNode({ data, selected }: NodeProps<RFServiceNode>) {
         handleStyle={{ background: config.color, border: `1px solid ${config.color}` }}
       />
 
-      <Handle type="target" position={Position.Left} className="service-handle" />
-      <Handle type="source" position={Position.Right} className="service-handle" />
-      <Handle type="target" position={Position.Top} className="service-handle" />
-      <Handle type="source" position={Position.Bottom} className="service-handle" />
+      <Handle type="source" id="left"   position={Position.Left}   className="service-handle" />
+      <Handle type="source" id="right"  position={Position.Right}  className="service-handle" />
+      <Handle type="source" id="top"    position={Position.Top}    className="service-handle" />
+      <Handle type="source" id="bottom" position={Position.Bottom} className="service-handle" />
 
       <div
         className="service-node-wrap"
