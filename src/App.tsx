@@ -209,6 +209,26 @@ function AppInner() {
 
   const mermaid = useMemo(() => toMermaid(graphNodes, graphEdges), [graphNodes, graphEdges]);
 
+  // Enrich parallel edges with parallelIndex/parallelTotal so ServiceEdge
+  // can offset their curvature for visual separation.
+  const parallelEdges = useMemo(() => {
+    const groups = new Map<string, typeof edges>();
+    for (const edge of edges) {
+      const key = [edge.source, edge.target].sort().join('|||');
+      const g = groups.get(key) ?? [];
+      g.push(edge);
+      groups.set(key, g);
+    }
+    return edges.map(edge => {
+      const key = [edge.source, edge.target].sort().join('|||');
+      const group = groups.get(key)!;
+      const idx = group.indexOf(edge);
+      const total = group.length;
+      if (total === 1) return edge;
+      return { ...edge, data: { ...edge.data, parallelIndex: idx, parallelTotal: total } };
+    });
+  }, [edges]);
+
   return (
     <ThemeContext.Provider value={{ isDark }}>
       <div className="app-root">
@@ -228,7 +248,7 @@ function AppInner() {
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={parallelEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}

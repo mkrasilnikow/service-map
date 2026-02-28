@@ -179,10 +179,14 @@ export function useGraph() {
   /** Handle new connection drawn by user (drag from Handle to Handle) */
   const onConnect = useCallback((connection: Connection) => {
     setEdges(eds => {
+      // Only block exact duplicates (same source handle → same target handle).
+      // A→B and B→A, or multiple edges between the same pair, are allowed.
       const alreadyExists = eds.some(
         e =>
-          (e.source === connection.source && e.target === connection.target) ||
-          (e.source === connection.target && e.target === connection.source),
+          e.source === connection.source &&
+          e.target === connection.target &&
+          (e.sourceHandle ?? null) === (connection.sourceHandle ?? null) &&
+          (e.targetHandle ?? null) === (connection.targetHandle ?? null),
       );
       if (alreadyExists) return eds;
       const newEdge: RFServiceEdge = {

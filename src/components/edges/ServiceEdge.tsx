@@ -22,6 +22,14 @@ export function ServiceEdge({
 }: EdgeProps<RFServiceEdge>) {
   const { isDark } = useTheme();
 
+  const parallelIndex = typeof data?.parallelIndex === 'number' ? data.parallelIndex : 0;
+  const parallelTotal = typeof data?.parallelTotal === 'number' ? data.parallelTotal : 1;
+  // Offset curvature so parallel edges fan out visually (0.1 → 0.7 range).
+  const curvature =
+    parallelTotal > 1
+      ? 0.1 + (parallelIndex / Math.max(parallelTotal - 1, 1)) * 0.6
+      : 0.25;
+
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -29,6 +37,7 @@ export function ServiceEdge({
     targetX,
     targetY,
     targetPosition,
+    curvature,
   });
 
   const intType = data?.integrationType as IntegrationTypeKey | undefined;
