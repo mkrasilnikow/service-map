@@ -9,7 +9,7 @@
  * the `nodes` array passed to <ReactFlow>. They are never stored in state.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   applyNodeChanges,
   applyEdgeChanges,
@@ -133,11 +133,36 @@ const DEMO_GRAPH_EDGES: GraphEdge[] = [
 const INITIAL_SERVICE_NODES = graphNodesToRF(DEMO_GRAPH_NODES);
 const INITIAL_EDGES = graphEdgesToRF(DEMO_GRAPH_EDGES);
 
+// ─── Persistence ───────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'service-map-flow';
+
+function loadFromStorage(): { nodes: RFServiceNode[]; edges: RFServiceEdge[] } | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) return null;
+    return parsed as { nodes: RFServiceNode[]; edges: RFServiceEdge[] };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useGraph() {
-  const [serviceNodes, setServiceNodes] = useState<RFServiceNode[]>(INITIAL_SERVICE_NODES);
-  const [edges, setEdges] = useState<RFServiceEdge[]>(INITIAL_EDGES);
+  const saved = useMemo(() => loadFromStorage(), []);
+
+  const [serviceNodes, setServiceNodes] = useState<RFServiceNode[]>(
+    saved?.nodes ?? INITIAL_SERVICE_NODES,
+  );
+  const [edges, setEdges] = useState<RFServiceEdge[]>(saved?.edges ?? INITIAL_EDGES);
+
+  /** Persist nodes and edges to localStorage whenever they change */
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes: serviceNodes, edges }));
+  }, [serviceNodes, edges]);
 
   /** Namespace background nodes derived from serviceNodes */
   const namespaceNodes = useMemo(() => computeNamespaceNodes(serviceNodes), [serviceNodes]);
@@ -282,6 +307,7 @@ export function useGraph() {
     nodes,
     serviceNodes,
     edges,
+    hasPersistedData: saved !== null,
     setServiceNodes,
     setEdges,
     onNodesChange,

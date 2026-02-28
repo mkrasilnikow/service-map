@@ -8,7 +8,7 @@
  *   - html-to-image for PNG download
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -19,6 +19,7 @@ import {
   useReactFlow,
   type NodeTypes,
   type EdgeTypes,
+  type Viewport,
 } from '@xyflow/react';
 
 import { ThemeContext } from './context/ThemeContext';
@@ -36,6 +37,7 @@ import { toMermaid } from './utils/export';
 import type { NodeTypeKey, GraphNode, GraphEdge } from './types';
 
 const THEME_KEY = 'service-map-theme';
+const VIEWPORT_KEY = 'service-map-viewport';
 
 const NODE_TYPES: NodeTypes = {
   service: ServiceNode,
@@ -55,6 +57,7 @@ function AppInner() {
     nodes,
     serviceNodes,
     edges,
+    hasPersistedData,
     setServiceNodes,
     setEdges,
     onNodesChange,
@@ -66,6 +69,25 @@ function AppInner() {
     importGraphData,
     restoreFlow,
   } = useGraph();
+
+  // Restore saved viewport once on mount (only when persisted data exists)
+  const viewportRestored = useRef(false);
+  useEffect(() => {
+    if (!hasPersistedData || viewportRestored.current) return;
+    try {
+      const raw = localStorage.getItem(VIEWPORT_KEY);
+      if (raw) {
+        const vp = JSON.parse(raw) as Viewport;
+        setTimeout(() => setViewport(vp), 50);
+        viewportRestored.current = true;
+      }
+    } catch { /* ignore */ }
+  }, [hasPersistedData, setViewport]);
+
+  /** Persist viewport whenever the user pans/zooms */
+  const onMoveEnd = useCallback((_: unknown, viewport: Viewport) => {
+    localStorage.setItem(VIEWPORT_KEY, JSON.stringify(viewport));
+  }, []);
 
   /* --- Theme --- */
   const [isDark, setIsDark] = useState(() => {
@@ -252,12 +274,13 @@ function AppInner() {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onMoveEnd={onMoveEnd}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
             connectionMode={ConnectionMode.Loose}
             deleteKeyCode="Delete"
             multiSelectionKeyCode="Shift"
-            fitView
+            fitView={!hasPersistedData}
             fitViewOptions={{ padding: 0.15 }}
             minZoom={0.1}
             maxZoom={3}
