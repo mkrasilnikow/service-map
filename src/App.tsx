@@ -106,16 +106,21 @@ function AppInner() {
   const [showImport, setShowImport] = useState(false);
 
   /* --- Derived selection from RF state --- */
-  const selectedServiceNode = serviceNodes.find(n => n.selected) ?? null;
-  const selectedEdge = edges.find(e => e.selected) ?? null;
-  const hasSelection = !!selectedServiceNode || !!selectedEdge;
-  const selectedKind: 'node' | 'edge' | null = selectedServiceNode
+  const selectedServiceNodes = serviceNodes.filter(n => n.selected);
+  const selectedEdges = edges.filter(e => e.selected);
+  // Single-selection helpers (for Sidebar)
+  const selectedServiceNode =
+    selectedServiceNodes.length === 1 ? selectedServiceNodes[0] : null;
+  const selectedEdge = selectedEdges.length === 1 ? selectedEdges[0] : null;
+  const hasSelection = selectedServiceNodes.length > 0 || selectedEdges.length > 0;
+  const selectedKind: 'node' | 'edge' | null = selectedServiceNodes.length > 0
     ? 'node'
-    : selectedEdge
+    : selectedEdges.length > 0
       ? 'edge'
       : null;
 
   /* --- Adapt RF nodes/edges to GraphNode/GraphEdge for Sidebar (no Sidebar changes needed) --- */
+  // Sidebar shows details only when exactly one element is selected
   const selectedGraphNode = useMemo((): GraphNode | null =>
     selectedServiceNode
       ? {
@@ -170,17 +175,21 @@ function AppInner() {
     [edges],
   );
 
-  /* --- Delete selected element --- */
+  /* --- Delete all selected elements --- */
   const deleteSelected = useCallback(() => {
-    if (selectedServiceNode) {
-      const id = selectedServiceNode.id;
-      setServiceNodes(nds => nds.filter(n => n.id !== id));
-      setEdges(eds => eds.filter(e => e.source !== id && e.target !== id));
-    } else if (selectedEdge) {
-      const id = selectedEdge.id;
-      setEdges(eds => eds.filter(e => e.id !== id));
+    const nodeIds = new Set(selectedServiceNodes.map(n => n.id));
+    const edgeIds = new Set(selectedEdges.map(e => e.id));
+
+    if (nodeIds.size > 0) {
+      setServiceNodes(nds => nds.filter(n => !nodeIds.has(n.id)));
+      // Also remove edges connected to deleted nodes
+      setEdges(eds =>
+        eds.filter(e => !nodeIds.has(e.source) && !nodeIds.has(e.target) && !edgeIds.has(e.id)),
+      );
+    } else if (edgeIds.size > 0) {
+      setEdges(eds => eds.filter(e => !edgeIds.has(e.id)));
     }
-  }, [selectedServiceNode, selectedEdge, setServiceNodes, setEdges]);
+  }, [selectedServiceNodes, selectedEdges, setServiceNodes, setEdges]);
 
   /* --- Add node from modal --- */
   const handleAddNode = useCallback(
@@ -257,6 +266,7 @@ function AppInner() {
         <Toolbar
           hasSelection={hasSelection}
           selectedKind={selectedKind}
+          selectionCount={selectedServiceNodes.length + selectedEdges.length}
           nodeCount={serviceNodes.length}
           edgeCount={edges.length}
           isDark={isDark}

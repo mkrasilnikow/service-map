@@ -8,8 +8,6 @@
 const LABELS = {
   TITLE: '◈ SERVICE MAP',
   ADD_NODE: '+ ADD NODE',
-  DELETE_NODE: '✕ DELETE NODE',
-  DELETE_EDGE: '✕ DELETE EDGE',
   EXPORT: '⬡ EXPORT',
   IMPORT: '⬡ IMPORT',
 } as const;
@@ -17,6 +15,7 @@ const LABELS = {
 interface ToolbarProps {
   hasSelection: boolean;
   selectedKind: 'node' | 'edge' | null;
+  selectionCount: number;
   nodeCount: number;
   edgeCount: number;
   isDark: boolean;
@@ -30,6 +29,7 @@ interface ToolbarProps {
 export function Toolbar({
   hasSelection,
   selectedKind,
+  selectionCount,
   nodeCount,
   edgeCount,
   isDark,
@@ -39,6 +39,14 @@ export function Toolbar({
   onImport,
   onToggleTheme,
 }: ToolbarProps) {
+  const deleteLabel =
+    selectedKind === 'node'
+      ? selectionCount > 1
+        ? `✕ DELETE ${selectionCount} NODES`
+        : '✕ DELETE NODE'
+      : selectionCount > 1
+        ? `✕ DELETE ${selectionCount} EDGES`
+        : '✕ DELETE EDGE';
   return (
     <div
       style={{
@@ -71,7 +79,7 @@ export function Toolbar({
 
       {hasSelection && (
         <button className="toolbar-btn danger" onClick={onDelete}>
-          {selectedKind === 'node' ? LABELS.DELETE_NODE : LABELS.DELETE_EDGE}
+          {deleteLabel}
         </button>
       )}
 
